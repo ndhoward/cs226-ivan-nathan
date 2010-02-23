@@ -7,4 +7,4 @@ particle-filter.o: particle-filter.cpp
 geomModel.o: geomModel.cpp
 	g++ -c geomModel.cpp
 clean:
-	rm -f point particle *.o *~
+	rm -f point *.o *~
