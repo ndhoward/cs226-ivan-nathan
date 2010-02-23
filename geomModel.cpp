@@ -1,22 +1,11 @@
 #include <cmath>
-#include <vector>
-
+#include <algorithm>	// min
 #include <iostream>
-
-#define MODEL_PERSON 1
-#define MODEL_BIKE 2
-
-#ifndef PI
-#define PI 3.14159265
-#endif
+#include "geomModel.h"
 
 using namespace std;
 
-// sample point belonging to a geometric model (e.g., pedestrian, bicyclist)
-typedef struct GMPoint {
-	float x, y, z;
-} GMPoint;
-
+/*
 void generatePersonModelSamples(vector < GMPoint > &samples,
 							    int num_samples, // apprixmate, check size of returned vector
 							    float radius,
@@ -91,7 +80,50 @@ float distanceToSet(vector < GMPoint > &samples,
 	}
 	return minDist;
 }
+*/
 
+float distanceToCylinder(float cylR, float cylH, // cylinder size
+						 float cylX, float cylY, // center at bottom cylinder face
+						 float testX, float testY, float testZ)	// point from which to measure distance to cylinder
+{
+	// distance to sides = abs(||(x,y) - (cylX, cylY)|| - cylR)
+	float distToSides = abs(sqrt((testX-cylX)*(testX-cylX) + (testY-cylY)*(testY-cylY)) - cylR);
+	float distToTop = abs(testZ - cylH);
+	float distToBtm = abs(testZ - 0.0);
+	float distToTopEdg = sqrt(distToTop*distToTop + distToSides*distToSides);
+	float distToBtmEdg = sqrt(distToBtm*distToBtm + distToSides*distToSides);
+	
+	// return the correct min distance depending on where the test point is
+	if(0.0 <= testZ && testZ <= cylH)
+		return min(min(distToSides, distToTop), distToBtm);
+	else if(testX*testX + testY*testY <= cylR*cylR)
+		return min(distToTop, distToBtm);
+	else
+		return min(distToTopEdg, distToBtmEdg);
+}
+
+// not normalized
+float likelihoodPerson(vector < ZPoint > &frame,
+					   float xPos, float yPos) {
+	
+	// tunable model parameters
+	const float EPSILON = 1.0;	
+	const float PERSON_RADIUS = 1.0;
+	const float PERSON_HEIGHT = 10.0;
+	
+	int countWithinEps = 0;
+	for(int i = 0; i < frame.size(); i++)
+	{
+		float dist = distanceToCylinder(PERSON_RADIUS, PERSON_HEIGHT,
+										xPos, yPos,	// person center
+										frame[i].x, frame[i].y, frame[i].z);
+		if(dist <= EPSILON)
+			countWithinEps++;
+	}
+	return (float)countWithinEps;
+}
+
+/*
 int main(int argc, char *argv[])
 {
 	// test for person samples
@@ -105,9 +137,7 @@ int main(int argc, char *argv[])
 	}
 	return 0;
 }
-
-
-
+*/
 
 
 

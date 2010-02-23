@@ -7,38 +7,7 @@
 #include <iostream>
 #include <string>
 
-#define MAX_X 200
-#define MAX_Y 200
-#define MIN_X -200
-#define MIN_Y -200
-#define NUM_PARTICLES 500
-
-using namespace std;
-
-class Particle_filter {
-  
-public:
-  struct particle {
-    float x;
-    float y;
-  };
-
-  struct particle *particles;
-  struct particle *oldParticles;
-  float *weights;
-  float *cumulativeWeightsIndex;
-  Particle_filter();
-  ~Particle_filter();
-  void update();
-
-private:
-  void bound_particle(struct particle &);
-  void jiggle_particle(struct particle &);
-  void update_Xt(struct particle&);
-  float setup_importance_sample();
-  float likelihood(float, struct particle);
-  int binarySearch(float[], int, int, float);
-};
+#include "particle-filter.h"
 
 Particle_filter::Particle_filter() {
   particles = new struct particle[NUM_PARTICLES];
@@ -149,9 +118,4 @@ int Particle_filter::binarySearch(float sortedArray[], int first, int last, floa
            return mid;     // found it. return position /////
    }
    return -(first + 1);    // failed to find key
-}
-
-int main () {
-  cout << "blah";
-  return 0;
 }
