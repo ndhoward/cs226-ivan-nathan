@@ -8,6 +8,8 @@
 #include <iostream>
 #include <string>
 
+#define PI 3.14159265
+
 using namespace std;
 
 GLfloat viewDist = 2.3;
@@ -26,6 +28,13 @@ struct point {
 vector < vector < struct point > > frames;
 int curFrame;
 
+// keeps track of view info
+float ctrX = 0.0, ctrY = 0.0, ctrZ = 0.0;
+float upX = 0.0, upY = 0.0, upZ = 1.0;
+float viewRho   = 1.0;	// eye distance from center
+float viewTheta = 45*PI/180.0;	// from Z axis
+float viewPhi   = 45*PI/180.0;	// from X axis
+
 void resize(int w, int h)
 {
 	glMatrixMode(GL_PROJECTION);
@@ -36,35 +45,100 @@ void resize(int w, int h)
 	glLoadIdentity();
 }
 
+// draws a string in 3d space
+// from http://www.lighthouse3d.com/opengl/glut/index.php?bmpfont
+void drawString(float x, float y, float z,  char *str) 
+{
+	//glPushMatrix();
+	glRasterPos3f(x,y,z);
+	for(char *c = str; *c != '\0'; c++)
+		glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10, *c);
+	//glPopMatrix();
+}
+
+void drawCoordinateAxes(void)
+{
+	// draw coordinates
+	glBegin(GL_LINES);
+	glColor4f(1, 1, 1, 0.1);
+	for(int x = -10; x <= 10; x++) {	
+		glVertex3f((float)x, -10.0, 0);
+		glVertex3f((float)x, 10.0,  0);
+	}
+	for(int y = -10; y <= 10; y++) {	
+		glVertex3f(-10.0, (float)y, 0);
+		glVertex3f( 10.0, (float)y, 0);
+	}
+	glEnd();
+	
+	// label coordinate axes
+	char buf[10];
+	for(int x = -10; x <= 10; x++) {
+		sprintf(buf, "%d", x);
+		drawString(x, 0.0, 0.0, buf);
+	}
+	for(int y = -10; y <= 10; y++) {
+		sprintf(buf, "%d", y);
+		drawString(0.0, y, 0.0, buf);
+	}
+	
+	// draw origin
+	glColor3f(0.75, 0.1, 0.1);
+	glPointSize(10.0);
+	glBegin(GL_POINTS);
+	glVertex3f(0.0, 0.0, 0.0);
+	glEnd();
+	
+	// draw origin markers
+	glBegin(GL_LINES);
+	glColor3f(1.0, 0.0, 0.0);
+	glVertex3f(0.0, 0.0, 0.0);	// x axis (red)
+	glVertex3f(1.0, 0.0, 0.0);
+	glColor3f(0.0, 1.0, 0.0);
+	glVertex3f(0.0, 0.0, 0.0);	// y axis (green)
+	glVertex3f(0.0, 1.0, 0.0);
+	glColor3f(0.0, 0.0, 1.0);
+	glVertex3f(0.0, 0.0, 0.0);	// z axis (blue)
+	glVertex3f(0.0, 0.0, 1.0);
+	glEnd();
+}
+
 
 void draw(void)
 {
-	int i,j,k;
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	// enable transparency
+	// from http://www.opengl.org/resources/faq/technical/transparency.htm
+	glEnable (GL_BLEND); 
+	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	
-	glClear(GL_COLOR_BUFFER_BIT);
-	glColor3f(1.0, 1.0, 1.0);
+	// calculate where we're looking
 	glLoadIdentity();
-	gluLookAt(viewDist*cos(viewAngle) + eyeXdelta,viewDist*sin(viewAngle) + eyeYdelta,eyeZ, 
-			  centerX, centerY, centerZ,
-			  0.0,0.0,1.0);
+	gluLookAt(ctrX + viewRho*sin(viewTheta)*cos(viewPhi), ctrY + viewRho*sin(viewTheta)*sin(viewPhi), ctrZ + viewRho*cos(viewTheta),
+			  ctrX, ctrY, ctrZ,
+			  upX, upY, upZ);
 	
+	drawCoordinateAxes();
+	
+	// test points
+	glColor3f(1,1,1);
+	glPointSize(2.0);
 	glBegin(GL_POINTS);
-	/*
-	for(i = 0; i < 10; i++)
-		for(j = 0; j < 10; j++)
-			for(k = 0; k < 10; k++)
-				glVertex3f(0.1*i,0.1*j,0.1*k);	
-	*/
-	
-	for(i = 0; i < frames[curFrame].size(); i++)
-	{
-		glVertex3f(0.1*frames[curFrame][i].x, 0.1*frames[curFrame][i].y, 0.1*frames[curFrame][i].z);
-	}
+	for(int i = 0; i < 10; i++)
+		for(int j = 0; j < 10; j++)
+			for(int k = 0; k < 10; k++)
+				glVertex3f(i,j,k);	
 	glEnd();
+	//for(i = 0; i < frames[curFrame].size(); i++)
+	//{
+	//	glVertex3f(0.1*frames[curFrame][i].x, 0.1*frames[curFrame][i].y, 0.1*frames[curFrame][i].z);
+	//}
+	//glEnd();
 	
 	glFlush();
 	glutPostRedisplay();
 	glutSwapBuffers();
+	
 }
 
 void nextFrame()
@@ -78,10 +152,10 @@ void specialKey(int k, int x, int y)
 	switch (k)
 	{
 		case GLUT_KEY_UP: // up arrow
-			viewDist -= 0.1;
+			viewRho -= 0.05*viewRho;
 			break;
 		case GLUT_KEY_DOWN: // down arrow
-			viewDist += 0.1;
+			viewRho += 0.05*viewRho;
 			break;
 		case GLUT_KEY_RIGHT: // right arrow
 			viewAngle -= 5.0*3.14159/180;
@@ -154,6 +228,7 @@ int main(int argc, char **argv)
 		cout << argv[0] << " <point_cloud_file.txt>" << endl;
 		exit(0);
 	}
+	
 	ifstream fin(argv[1]);
 	string line;
 	float x,y,z;
@@ -188,7 +263,7 @@ int main(int argc, char **argv)
 	printf("Current frame: %d\n", frames[curFrame][0].t);
 
 	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
 	glutInitWindowSize(600, 500);
 	
 	glutCreateWindow("Points");
