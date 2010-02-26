@@ -14,7 +14,8 @@ for line in pointFile:
     t = int(vals[3])  
     if t > numFrames:
         numFrames = t
-
+    
+    yIndx = int(y*10)
     xIndx = int(x*10)
     zIndx = int(z*10)
     point = frozenset([xIndx,yIndx,zIndx])

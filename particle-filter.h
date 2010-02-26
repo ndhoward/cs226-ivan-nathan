@@ -1,6 +1,9 @@
 #ifndef PARTICLE_FILTER_H
 #define PARTICLE_FILTER_H
 
+#include <vector>
+#include "point.h"
+
 #define MAX_X 200
 #define MAX_Y 200
 #define MIN_X -200
@@ -21,9 +24,11 @@ public:
   struct particle *oldParticles;
   float *weights;
   float *cumulativeWeightsIndex;
+  vector<point> *measurments;
   Particle_filter();
   ~Particle_filter();
   void update();
+  void updateMeasurments(vector<point>*);
 
 private:
   void bound_particle(struct particle &);

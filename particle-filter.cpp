@@ -9,6 +9,8 @@
 
 #include "particle-filter.h"
 
+using namespace std;
+
 Particle_filter::Particle_filter() {
   particles = new struct particle[NUM_PARTICLES];
   oldParticles = new struct particle[NUM_PARTICLES];
@@ -58,10 +60,15 @@ float Particle_filter::setup_importance_sample() {
   return sum;
 }
 
+void Particle_filter::updateMeasurments(vector<point> *curFrame) {
+  measurments = curFrame;
+}
+
 // fill this in with Ivan's code
 float Particle_filter::likelihood(float blah, struct particle p) {
   return p.x * p.y;
 }
+
 
 // update takes in X_{t-1},u_t,z_t and returns X_t
 void  Particle_filter::update() {

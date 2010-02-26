@@ -8,6 +8,9 @@
 #include <iostream>
 #include <string>
 
+#include "point.h"
+#include "particle-filter.h"
+
 #define PI 3.14159265
 
 using namespace std;
@@ -21,10 +24,7 @@ GLfloat centerX = -75.0;
 GLfloat centerY = 3.16;
 GLfloat centerZ = 1.4;
 
-struct point {
-	float x,y,z;
-	int t;
-};
+
 vector < vector < struct point > > frames;
 int curFrame;
 
@@ -34,6 +34,8 @@ float upX = 0.0, upY = 0.0, upZ = 1.0;
 float viewRho   = 1.0;	// eye distance from center
 float viewTheta = 45*PI/180.0;	// from Z axis
 float viewPhi   = 45*PI/180.0;	// from X axis
+
+Particle_filter *filter;
 
 void resize(int w, int h)
 {
@@ -124,16 +126,16 @@ void draw(void)
 	glColor3f(1,1,1);
 	glPointSize(2.0);
 	glBegin(GL_POINTS);
-	for(int i = 0; i < 10; i++)
-		for(int j = 0; j < 10; j++)
-			for(int k = 0; k < 10; k++)
-				glVertex3f(i,j,k);	
-	glEnd();
-	//for(i = 0; i < frames[curFrame].size(); i++)
-	//{
-	//	glVertex3f(0.1*frames[curFrame][i].x, 0.1*frames[curFrame][i].y, 0.1*frames[curFrame][i].z);
-	//}
+	//	for(int i = 0; i < 10; i++)
+	//	for(int j = 0; j < 10; j++)
+	//		for(int k = 0; k < 10; k++)
+	//			glVertex3f(i,j,k);	
 	//glEnd();
+	for(int i = 0; i < frames[curFrame].size(); i++)
+	{
+		glVertex3f(0.1*frames[curFrame][i].x, 0.1*frames[curFrame][i].y, 0.1*frames[curFrame][i].z);
+	}
+	glEnd();
 	
 	glFlush();
 	glutPostRedisplay();
@@ -211,6 +213,7 @@ void key(unsigned char k, int x, int y)
 		case '1':
 			if(curFrame < frames.size() - 1) curFrame++;
 			printf("Current frame: %d\n", frames[curFrame][0].t);
+			filter->updateMeasurments(&frames[curFrame]);
 			break;
 		case '!':
 			if(curFrame > 0) curFrame--;
@@ -258,6 +261,9 @@ int main(int argc, char **argv)
 	printf("done!\n");
 	fin.close();
 	
+	// initialize particle filter
+	filter = new Particle_filter();
+
 	// initialize current frame
 	curFrame = 0;
 	printf("Current frame: %d\n", frames[curFrame][0].t);
@@ -267,7 +273,6 @@ int main(int argc, char **argv)
 	glutInitWindowSize(600, 500);
 	
 	glutCreateWindow("Points");
-	
 	
 	glutSpecialFunc(specialKey);
 	glutKeyboardFunc(key);
