@@ -14,7 +14,7 @@ typedef struct GMPoint {
 	float x, y, z;
 } GMPoint;
 
-// a point of measurement type
+// a point of measurement type (raw Velodyne data)
 typedef struct ZPoint {
 	float x, y, z;
 	int t;

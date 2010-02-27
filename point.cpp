@@ -10,30 +10,25 @@
 
 #include "point.h"
 #include "particle-filter.h"
-
-#define PI 3.14159265
+#include "geomModel.h"
 
 using namespace std;
 
-GLfloat viewDist = 2.3;
-GLfloat viewAngle = -5.93;
-GLfloat eyeXdelta = -75.0;
-GLfloat eyeYdelta = 3.16;
-GLfloat eyeZ = 1.4;
-GLfloat centerX = -75.0;
-GLfloat centerY = 3.16;
-GLfloat centerZ = 1.4;
-
-
-vector < vector < struct point > > frames;
+// data
+vector < vector < ZPoint > > frames;
 int curFrame;
 
 // keeps track of view info
 float ctrX = 0.0, ctrY = 0.0, ctrZ = 0.0;
 float upX = 0.0, upY = 0.0, upZ = 1.0;
-float viewRho   = 1.0;	// eye distance from center
-float viewTheta = 45*PI/180.0;	// from Z axis
+float viewRho   = 50.0;	// eye distance from center
+float viewTheta = 80*PI/180.0;	// from Z axis
 float viewPhi   = 45*PI/180.0;	// from X axis
+float markerX = 0.0, markerY = 0.0, markerZ = 0.0;
+
+// different visualization modes
+enum ViewMode {VIEW_NORMAL, VIEW_MOVE_MARKER};
+ViewMode mode = VIEW_NORMAL;
 
 Particle_filter *filter;
 
@@ -42,7 +37,8 @@ void resize(int w, int h)
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	glViewport(0, 0, w, h);
-	gluPerspective(45.0f, 1.0f * w / h, 1.0f, 100.0f);
+	// may want to decrease zNear for better visual performance
+	gluPerspective(45.0f, 1.0f * w / h, 0.1f, 100000.0f);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 }
@@ -60,36 +56,49 @@ void drawString(float x, float y, float z,  char *str)
 
 void drawCoordinateAxes(void)
 {
+	// define the range over which to draw the ground plane
+	int const PLANE_RANGE = 1000.0;
+	int const LABEL_DELTA = 100.0;
+	
+	// draw ground plane
+	glBegin(GL_POLYGON);
+	glColor4f(1,1,1,0.05);
+	glVertex3f(-PLANE_RANGE,-PLANE_RANGE, 0);
+	glVertex3f(-PLANE_RANGE, PLANE_RANGE, 0);
+	glVertex3f(PLANE_RANGE, PLANE_RANGE, 0);
+	glVertex3f(PLANE_RANGE, -PLANE_RANGE, 0);
+	glEnd();
+	
 	// draw coordinates
 	glBegin(GL_LINES);
 	glColor4f(1, 1, 1, 0.1);
-	for(int x = -10; x <= 10; x++) {	
-		glVertex3f((float)x, -10.0, 0);
-		glVertex3f((float)x, 10.0,  0);
+	for(int x = -PLANE_RANGE; x <= PLANE_RANGE; x+= LABEL_DELTA) {	
+		glVertex3f((float)x, -PLANE_RANGE, 0);
+		glVertex3f((float)x, PLANE_RANGE,  0);
 	}
-	for(int y = -10; y <= 10; y++) {	
-		glVertex3f(-10.0, (float)y, 0);
-		glVertex3f( 10.0, (float)y, 0);
+	for(int y = -PLANE_RANGE; y <= PLANE_RANGE; y += LABEL_DELTA) {	
+		glVertex3f(-PLANE_RANGE, (float)y, 0);
+		glVertex3f( PLANE_RANGE, (float)y, 0);
 	}
 	glEnd();
 	
 	// label coordinate axes
 	char buf[10];
-	for(int x = -10; x <= 10; x++) {
+	for(int x = -PLANE_RANGE; x <= PLANE_RANGE; x += LABEL_DELTA) {
 		sprintf(buf, "%d", x);
 		drawString(x, 0.0, 0.0, buf);
 	}
-	for(int y = -10; y <= 10; y++) {
+	for(int y = -PLANE_RANGE; y <= PLANE_RANGE; y += LABEL_DELTA) {
 		sprintf(buf, "%d", y);
 		drawString(0.0, y, 0.0, buf);
 	}
 	
 	// draw origin
-	glColor3f(0.75, 0.1, 0.1);
-	glPointSize(10.0);
-	glBegin(GL_POINTS);
-	glVertex3f(0.0, 0.0, 0.0);
-	glEnd();
+	//glColor3f(0.75, 0.1, 0.1);
+	//glPointSize(10.0);
+	//glBegin(GL_POINTS);
+	//glVertex3f(0.0, 0.0, 0.0);
+	//glEnd();
 	
 	// draw origin markers
 	glBegin(GL_LINES);
@@ -105,6 +114,14 @@ void drawCoordinateAxes(void)
 	glEnd();
 }
 
+void drawMarker(float x, float y, float z)
+{
+	glPointSize(5.0);
+	glColor4f(0.0, 1.0, 0.0, 0.5);
+	glBegin(GL_POINTS);
+	glVertex3f(x, y, z);
+	glEnd();
+}
 
 void draw(void)
 {
@@ -121,19 +138,21 @@ void draw(void)
 			  upX, upY, upZ);
 	
 	drawCoordinateAxes();
+	drawMarker(markerX, markerY, markerZ);
 	
 	// test points
 	glColor3f(1,1,1);
-	glPointSize(2.0);
+	glPointSize(1.0);
 	glBegin(GL_POINTS);
-	//	for(int i = 0; i < 10; i++)
+	// test data
+	//for(int i = 0; i < 10; i++)
 	//	for(int j = 0; j < 10; j++)
 	//		for(int k = 0; k < 10; k++)
 	//			glVertex3f(i,j,k);	
-	//glEnd();
+	// point data
 	for(int i = 0; i < frames[curFrame].size(); i++)
 	{
-		glVertex3f(0.1*frames[curFrame][i].x, 0.1*frames[curFrame][i].y, 0.1*frames[curFrame][i].z);
+		glVertex3f(frames[curFrame][i].x, frames[curFrame][i].y, frames[curFrame][i].z);
 	}
 	glEnd();
 	
@@ -159,10 +178,10 @@ void specialKey(int k, int x, int y)
 			viewRho += 0.05*viewRho;
 			break;
 		case GLUT_KEY_RIGHT: // right arrow
-			viewAngle -= 5.0*3.14159/180;
+			viewPhi += 3.0*PI/180.0;
 			break;
 		case GLUT_KEY_LEFT: // left arrow
-			viewAngle += 5.0*3.14159/180;
+			viewPhi -= 3.0*PI/180.0;
 			break;
 	}
 }
@@ -175,40 +194,33 @@ void key(unsigned char k, int x, int y)
 			exit(0); 
 			break;
 		case 'd':
-			centerX -= 0.1*sin(viewAngle);
-			centerY += 0.1*cos(viewAngle);
-			eyeXdelta -= 0.1*sin(viewAngle);
-			eyeYdelta += 0.1*cos(viewAngle);
+			ctrX -= 0.05*viewRho*cos(viewTheta)*sin(viewPhi);
+			ctrY += 0.05*viewRho*cos(viewTheta)*cos(viewPhi);
 			break;
 		case 'a':
-			centerX += 0.1*sin(viewAngle);
-			centerY -= 0.1*cos(viewAngle);
-			eyeXdelta += 0.1*sin(viewAngle);
-			eyeYdelta -= 0.1*cos(viewAngle);
+			ctrX += 0.05*viewRho*cos(viewTheta)*sin(viewPhi);
+			ctrY -= 0.05*viewRho*cos(viewTheta)*cos(viewPhi);
 			break;
 		case 'w':
-			centerX -= 0.1*cos(viewAngle);
-			centerY -= 0.1*sin(viewAngle);
-			eyeXdelta -= 0.1*cos(viewAngle);
-			eyeYdelta -= 0.1*sin(viewAngle);
-			printf("viewDist=%f\n viewAngle%f\n eyeXdelta=%f\n eyeYdelta=%f\n eyeZ=%f\n centerX=%f\n centerY=%f\n centerZ=%f\n", 
-		        viewDist,     viewAngle,    eyeXdelta,     eyeYdelta,     eyeZ,     centerX,     centerY,     centerZ);
+			ctrX -= 0.05*viewRho*sin(viewTheta)*cos(viewPhi);
+			ctrY -= 0.05*viewRho*sin(viewTheta)*sin(viewPhi);
+			//ctrZ -= 0.05*viewRho*cos(viewTheta);
 			break;
 		case 's':
-			centerX += 0.1*cos(viewAngle);
-			centerY += 0.1*sin(viewAngle);
-			eyeXdelta += 0.1*cos(viewAngle);
-			eyeYdelta += 0.1*sin(viewAngle);
+			ctrX += 0.05*viewRho*sin(viewTheta)*cos(viewPhi);
+			ctrY += 0.05*viewRho*sin(viewTheta)*sin(viewPhi);
+			//ctrZ += 0.05*viewRho*cos(viewTheta);
 			break;
 		case 'e':
-			eyeZ += 0.1;
-			centerZ -= 0.1;
+			viewTheta -= 3.0*PI/180.0;
+			if(viewTheta < 0.1)	// prevent from discontinuous viewing
+				viewTheta = 0.01;
 			break;
 		case 'c':
-			eyeZ -= 0.1;
-			centerZ += 0.1;
+			viewTheta += 3.0*PI/180.0;
+			if(viewTheta > 179.9*PI/180.0)
+				viewTheta = 179.99*PI/180.0;
 			break;
-			
 		case '1':
 			if(curFrame < frames.size() - 1) curFrame++;
 			printf("Current frame: %d\n", frames[curFrame][0].t);
@@ -222,6 +234,73 @@ void key(unsigned char k, int x, int y)
 	}
 }
 
+void readDataFile(vector < vector<ZPoint> > &frames, char *filename)
+{
+	ifstream fin(filename);
+	string line;
+	float x,y,z;
+	int t;
+	
+	printf("Reading file %s...", filename);
+	int lastT = -1;
+	while(getline(fin, line))
+	{
+		if(line[0] == '#') continue;
+		sscanf(line.c_str(), "%f,%f,%f,%d",&x,&y,&z,&t);
+		ZPoint pt;
+		pt.x = x;
+		pt.y = y;
+		pt.z = z;
+		pt.t = t;
+		
+		if(t > lastT)
+		{
+			vector <ZPoint> newFrame;
+			frames.push_back(newFrame);
+			lastT = t;
+		}
+		
+		frames.back().push_back(pt);
+	}
+	printf("done!\n");
+	fin.close();
+}
+
+void preProcessData(vector< vector<ZPoint> > &frames)
+{
+	float meanX = 0.0, meanY = 0.0, meanZ = 0.0;
+	int totalPoints = 0;
+	
+	printf("-- Preprocessing data --\n");
+	printf("Subtracting off the mean..."); fflush(stdout);
+	// center the data set so that the mean is at 0,0,0
+	// calculate mean
+	for(int fr = 0; fr < frames.size(); fr++) {
+		for(int i = 0; i < frames[fr].size(); i++) {
+			meanX += frames[fr][i].x;
+			meanY += frames[fr][i].y;
+			meanZ += frames[fr][i].z;
+			totalPoints++;
+		}
+	}
+	meanX /= (float)totalPoints;
+	meanY /= (float)totalPoints;
+	meanZ /= (float)totalPoints;
+	
+	// subtract mean (and smallest value of z)
+	for(int fr = 0; fr < frames.size(); fr++) {
+		for(int i = 0; i < frames[fr].size(); i++) {
+			frames[fr][i].x -= meanX;
+			frames[fr][i].y -= meanY;
+			// also subtract away the z-mean (ground plane will cut through dataset)
+			//frames[fr][i].z -= meanZ;
+		}
+	}
+	printf("done!\n");
+	
+}
+
+
 int main(int argc, char **argv)
 {
 	
@@ -231,42 +310,14 @@ int main(int argc, char **argv)
 		cout << argv[0] << " <point_cloud_file.txt>" << endl;
 		exit(0);
 	}
-	
-	ifstream fin(argv[1]);
-	string line;
-	float x,y,z;
-	int t;
-	
-	printf("Reading file %s...", argv[1]);
-	int lastT = -1;
-	while(getline(fin, line))
-	{
-		if(line[0] == '#') continue;
-		sscanf(line.c_str(), "%f,%f,%f,%d",&x,&y,&z,&t);
-		struct point pt;
-		pt.x = x;
-		pt.y = y;
-		pt.z = z;
-		pt.t = t;
-		
-		if(t > lastT)
-		{
-			vector <struct point> newFrame;
-			frames.push_back(newFrame);
-			lastT = t;
-		}
-		
-		frames.back().push_back(pt);
-	}
-	printf("done!\n");
-	fin.close();
+	// read and display data
+	readDataFile(frames, argv[1]);
+	preProcessData(frames); 	// subtracts away the mean
+	curFrame = 0;
+	printf("Current frame: %d\n", frames[curFrame][0].t);
 	
 	// initialize particle filter
 	filter = new Particle_filter();
-
-	// initialize current frame
-	curFrame = 0;
-	printf("Current frame: %d\n", frames[curFrame][0].t);
 
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
