@@ -2,39 +2,40 @@
 #define PARTICLE_FILTER_H
 
 #include <vector>
-#include "point.h"
+#include "geomModel.h"
 
 #define MAX_X 200
 #define MAX_Y 200
 #define MIN_X -200
 #define MIN_Y -200
-#define NUM_PARTICLES 500
+#define NUM_PARTICLES 100
+
+typedef struct Particle {
+  float x;
+  float y;
+} Particle;
 
 class Particle_filter {
   
 public:
-  struct particle {
-    float x;
-    float y;
-  };
 
-  struct particle *particles;
-  struct particle *oldParticles;
+  struct Particle *particles;
+  struct Particle *oldParticles;
   float *weights;
   float *cumulativeWeightsIndex;
-  vector<point> *measurments;
+  vector <ZPoint> *measurments;
   Particle_filter();
   ~Particle_filter();
   void update();
-  void updateMeasurments(vector<point>*);
-  struct particle *getParticles();
+  void updateMeasurments(vector< ZPoint > *);
+  Particle *getParticles();
 
 private:
-  void bound_particle(struct particle &);
-  void jiggle_particle(struct particle &);
-  void update_Xt(struct particle&);
+  void bound_particle(Particle &);
+  void jiggle_particle(Particle &);
+  void update_Xt(Particle &);
   float setup_importance_sample();
-  float likelihood(struct particle&);
+  float likelihood(Particle &);
   int binarySearch(float[], int, int, float);
 };
 

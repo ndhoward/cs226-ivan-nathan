@@ -25,6 +25,8 @@ float viewRho   = 50.0;	// eye distance from center
 float viewTheta = 80*PI/180.0;	// from Z axis
 float viewPhi   = 45*PI/180.0;	// from X axis
 float markerX = 0.0, markerY = 0.0, markerZ = 0.0;
+float meanX, meanY, meanZ;
+float minZ;
 
 // different visualization modes
 enum ViewMode {VIEW_NORMAL, VIEW_MOVE_MARKER};
@@ -149,10 +151,24 @@ void draw(void)
 	//	for(int j = 0; j < 10; j++)
 	//		for(int k = 0; k < 10; k++)
 	//			glVertex3f(i,j,k);	
+
 	// point data
 	for(int i = 0; i < frames[curFrame].size(); i++)
 	{
 		glVertex3f(frames[curFrame][i].x, frames[curFrame][i].y, frames[curFrame][i].z);
+		//cout << "point: " << frames[curFrame][i].x << ", " << frames[curFrame][i].y << ", " <<  frames[curFrame][i].z << endl;
+	}
+	glEnd();
+
+	//particle filter points
+	glColor3f(1,0,0);
+	glPointSize(5.0);
+	glBegin(GL_POINTS);
+	Particle *particles = filter->getParticles();
+	for (int i=0; i<NUM_PARTICLES; i++) {
+	  Particle p = particles[i];
+	  glVertex3f(p.x, p.y, minZ);
+	  cout << "particle filter: " << p.x << ", " << p.y << endl;
 	}
 	glEnd();
 	
@@ -268,7 +284,10 @@ void readDataFile(vector < vector<ZPoint> > &frames, char *filename)
 
 void preProcessData(vector< vector<ZPoint> > &frames)
 {
-	float meanX = 0.0, meanY = 0.0, meanZ = 0.0;
+  meanX = 0.0;
+  meanY = 0.0;
+  meanZ = 0.0;
+  minZ = 1000;
 	int totalPoints = 0;
 	
 	printf("-- Preprocessing data --\n");
@@ -280,6 +299,9 @@ void preProcessData(vector< vector<ZPoint> > &frames)
 			meanX += frames[fr][i].x;
 			meanY += frames[fr][i].y;
 			meanZ += frames[fr][i].z;
+			if (frames[fr][i].z < minZ) {
+			  minZ = frames[fr][i].z;
+			}
 			totalPoints++;
 		}
 	}

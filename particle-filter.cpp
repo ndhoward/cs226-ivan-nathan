@@ -13,15 +13,18 @@
 using namespace std;
 
 Particle_filter::Particle_filter() {
-  particles = new struct particle[NUM_PARTICLES];
-  oldParticles = new struct particle[NUM_PARTICLES];
+  particles = new Particle[NUM_PARTICLES];
+  oldParticles = new Particle[NUM_PARTICLES];
   weights = new float[NUM_PARTICLES];
   cumulativeWeightsIndex = new float[NUM_PARTICLES];
   /* initialize random seed: */
   srand ( time(NULL) );
+  float xRange = MAX_X-MIN_X;
+  float yRange = MAX_Y-MIN_Y;
   for(int i=0; i<NUM_PARTICLES; i++) {
-    particles[i].x = rand() * ((MAX_X-MIN_X)/RAND_MAX)*rand()+MIN_X;
-    particles[i].y = rand() * ((MAX_Y-MIN_Y)/RAND_MAX)*rand()+MIN_Y;
+    particles[i].x = rand()*xRange/RAND_MAX + MIN_X;
+    particles[i].y = rand()*yRange/RAND_MAX + MIN_Y;
+  // cout << "initial points: " << particles[i].x << ", " << particles[i].y << endl;
   }
 }
 
@@ -32,7 +35,7 @@ Particle_filter::~Particle_filter() {
   delete cumulativeWeightsIndex;
 }
 
-void Particle_filter::bound_particle(particle &p) {
+void Particle_filter::bound_particle(Particle &p) {
     if (p.x > MAX_X) {
       p.x = MAX_X;
     } else if (p.x < MIN_X) {
@@ -47,7 +50,7 @@ void Particle_filter::bound_particle(particle &p) {
 
 //TODO: this is crap, replace!
 //Dummy motion model - make realistic later
-void Particle_filter::update_Xt(particle &p) {
+void Particle_filter::update_Xt(Particle &p) {
   p.x = p.x + 0.5;
   p.y = p.y + 0.5;
 }
@@ -61,20 +64,19 @@ float Particle_filter::setup_importance_sample() {
   return sum;
 }
 
-void Particle_filter::updateMeasurments(vector<point> *curFrame) {
+void Particle_filter::updateMeasurments(vector<ZPoint> *curFrame) {
   measurments = curFrame;
 }
 
-// fill this in with Ivan's code
-float Particle_filter::likelihood(struct particle &p) {
-  return p.x * p.y;
+float Particle_filter::likelihood(Particle &p) {
+  likelihoodPerson(*measurments, p.x, p.y);
 }
 
 
 // update takes in X_{t-1},u_t,z_t and returns X_t
 void  Particle_filter::update() {
   // swap particles and oldParticles lists
-  struct particle *temp = particles;
+  Particle *temp = particles;
   particles = oldParticles;
   oldParticles = temp;
 
@@ -82,7 +84,7 @@ void  Particle_filter::update() {
     // sample x_t^m ~ p(x_t | u_t, x_{t-1}^m)
     update_Xt(oldParticles[i]);
     // w_t^m = p(z_t | x_t^m)
-    weights[i] = likelihood(13, oldParticles[i]);
+    weights[i] = likelihood(oldParticles[i]);
   }
 
   float cumulative = setup_importance_sample();
@@ -97,9 +99,13 @@ void  Particle_filter::update() {
 }
 
 // For now this is a uniform probabilty centered at the particle
-void Particle_filter::jiggle_particle(particle &p) {
+void Particle_filter::jiggle_particle(Particle &p) {
   p.x = p.x - 1 + 2*rand()/RAND_MAX;
   p.y = p.y - 1 + 2*rand()/RAND_MAX;
+}
+
+Particle *Particle_filter::getParticles() {
+  return particles;
 }
 
 // Taken from: http://www.fredosaurus.com/notes-cpp/algorithms/searching/binarysearch.html
