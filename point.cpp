@@ -139,8 +139,7 @@ void draw(void)
 	
 	glFlush();
 	glutPostRedisplay();
-	glutSwapBuffers();
-	
+	glutSwapBuffers();	
 }
 
 void nextFrame()
@@ -214,6 +213,7 @@ void key(unsigned char k, int x, int y)
 			if(curFrame < frames.size() - 1) curFrame++;
 			printf("Current frame: %d\n", frames[curFrame][0].t);
 			filter->updateMeasurments(&frames[curFrame]);
+			filter->update();
 			break;
 		case '!':
 			if(curFrame > 0) curFrame--;

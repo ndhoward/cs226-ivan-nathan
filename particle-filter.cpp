@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <boost/math/distributions/normal.hpp>
 
 #include "particle-filter.h"
 
@@ -65,7 +66,7 @@ void Particle_filter::updateMeasurments(vector<point> *curFrame) {
 }
 
 // fill this in with Ivan's code
-float Particle_filter::likelihood(float blah, struct particle p) {
+float Particle_filter::likelihood(struct particle &p) {
   return p.x * p.y;
 }
 
@@ -95,9 +96,10 @@ void  Particle_filter::update() {
   }
 }
 
-//TODO: implement this later - probably using BOOST library
+// For now this is a uniform probabilty centered at the particle
 void Particle_filter::jiggle_particle(particle &p) {
-  
+  p.x = p.x - 1 + 2*rand()/RAND_MAX;
+  p.y = p.y - 1 + 2*rand()/RAND_MAX;
 }
 
 // Taken from: http://www.fredosaurus.com/notes-cpp/algorithms/searching/binarysearch.html

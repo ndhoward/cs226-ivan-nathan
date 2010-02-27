@@ -10,8 +10,6 @@
 #define MIN_Y -200
 #define NUM_PARTICLES 500
 
-using namespace std;
-
 class Particle_filter {
   
 public:
@@ -29,16 +27,15 @@ public:
   ~Particle_filter();
   void update();
   void updateMeasurments(vector<point>*);
+  struct particle *getParticles();
 
 private:
   void bound_particle(struct particle &);
   void jiggle_particle(struct particle &);
   void update_Xt(struct particle&);
   float setup_importance_sample();
-  float likelihood(float, struct particle);
+  float likelihood(struct particle&);
   int binarySearch(float[], int, int, float);
 };
-
-
 
 #endif
