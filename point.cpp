@@ -59,8 +59,8 @@ void drawString(float x, float y, float z,  char *str)
 void drawCoordinateAxes(void)
 {
 	// define the range over which to draw the ground plane
-	int const PLANE_RANGE = 1000.0;
-	int const LABEL_DELTA = 100.0;
+	int const PLANE_RANGE = 200.0;
+	int const LABEL_DELTA = 10.0;
 	
 	// draw ground plane
 	glBegin(GL_POLYGON);
@@ -293,10 +293,6 @@ void preProcessData(vector< vector<ZPoint> > &frames)
   meanX = 0.0;
   meanY = 0.0;
   meanZ = 0.0;
-  maxX = -1000;
-  minX = 1000;
-  maxY = -1000;
-  minY = 1000;
   int totalPoints = 0;
   
   printf("-- Preprocessing data --\n");
@@ -308,38 +304,49 @@ void preProcessData(vector< vector<ZPoint> > &frames)
       meanX += frames[fr][i].x;
       meanY += frames[fr][i].y;
       meanZ += frames[fr][i].z;
-      if (frames[fr][i].z < minZ)
-	minZ = frames[fr][i].z;
-      if (frames[fr][i].x < minX)
-	minX = frames[fr][i].x;
-      if (frames[fr][i].x > maxX)
-	maxX = frames[fr][i].x;
-      if (frames[fr][i].y < minY)
-	minY = frames[fr][i].y;
-      if (frames[fr][i].y > maxY)
-	maxY = frames[fr][i].y;
       totalPoints++;
     }
   }
   meanX /= (float)totalPoints;
   meanY /= (float)totalPoints;
   meanZ /= (float)totalPoints;
-  maxX -= meanX;
-  minX -= meanX;
-  maxY -= meanY;
-  minY -= meanY;
-  //hack to make the visualization look nicer
-  minZ = meanZ - 1.5;
+  
   // subtract mean (and smallest value of z)
   for(int fr = 0; fr < frames.size(); fr++) {
     for(int i = 0; i < frames[fr].size(); i++) {
       frames[fr][i].x -= meanX;
       frames[fr][i].y -= meanY;
       // also subtract away the z-mean (ground plane will cut through dataset)
-      //frames[fr][i].z -= meanZ;
+      frames[fr][i].z -= meanZ;
     }
   }
   printf("done!\n");
+  
+  printf("Finding an interesting square...");
+  fflush(stdout);
+  vector< vector<ZPoint> > newFrames;
+  for(int fr = 0; fr < frames.size(); fr++)
+  {
+  	vector< ZPoint > thisFrame;
+  	newFrames.push_back(thisFrame);
+  	for(int i = 0; i < frames[fr].size(); i++)
+  	{
+  		if(-25.0 <= frames[fr][i].x && frames[fr][i].x <= 0.0 &&
+  		   -25.0 <= frames[fr][i].y && frames[fr][i].y <= 0.0)
+  		{
+  			newFrames.back().push_back(frames[fr][i]);
+  		}
+  	}
+  }
+  printf("done!\n");
+  
+  maxX = 0;
+  minX = -25;
+  maxY = 0;
+  minY = -25;
+  minZ = 0;
+  
+  frames = newFrames;
   
 }
 
