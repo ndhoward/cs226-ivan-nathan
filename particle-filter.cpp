@@ -92,7 +92,7 @@ void  Particle_filter::update() {
     update_Xt(oldParticles[i]);
     // w_t^m = p(z_t | x_t^m)
     weights[i] = likelihood(oldParticles[i]);
-    //cout << "weights["<< i << "]: computed by likelihood as: " << weights[i] << endl;
+    cout << "weights["<< i << "] ("<< oldParticles[i].x << "," << oldParticles[i].y << "," << oldParticles[i].theta << "): computed by likelihood as: " << weights[i] << endl;
   }
 
   float cumulative = setup_importance_sample();

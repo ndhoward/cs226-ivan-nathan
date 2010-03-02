@@ -82,37 +82,42 @@ float distanceToSet(vector < GMPoint > &samples,
 }
 */
 
-float distanceToCylinder(float cylR, float cylH, // cylinder size
-						 float cylX, float cylY, // center at bottom cylinder face
-						 float testX, float testY, float testZ)	// point from which to measure distance to cylinder
-{
-	// distance to sides = abs(||(x,y) - (cylX, cylY)|| - cylR)
-	float distToSides = abs(sqrt((testX-cylX)*(testX-cylX) + (testY-cylY)*(testY-cylY)) - cylR);
-	float distToTop = abs(testZ - cylH);
-	float distToBtm = abs(testZ - 0.0);
-	float distToTopEdg = sqrt(distToTop*distToTop + distToSides*distToSides);
-	float distToBtmEdg = sqrt(distToBtm*distToBtm + distToSides*distToSides);
+// float distanceToCylinder(float cylR, float cylH, // cylinder size
+// 						 float cylX, float cylY, // center at bottom cylinder face
+// 						 float testX, float testY, float testZ)	// point from which to measure distance to cylinder
+// {
+// 	// distance to sides = abs(||(x,y) - (cylX, cylY)|| - cylR)
+// 	float distToSides = abs(sqrt((testX-cylX)*(testX-cylX) + (testY-cylY)*(testY-cylY)) - cylR);
+// 	float distToTop = abs(testZ - cylH);
+// 	float distToBtm = abs(testZ - 0.0);
+// 	float distToTopEdg = sqrt(distToTop*distToTop + distToSides*distToSides);
+// 	float distToBtmEdg = sqrt(distToBtm*distToBtm + distToSides*distToSides);
 	
-	// return the correct min distance depending on where the test point is
-	if(0.0 <= testZ && testZ <= cylH)
-		return min(min(distToSides, distToTop), distToBtm);
-	else if(testX*testX + testY*testY <= cylR*cylR)
-		return min(distToTop, distToBtm);
-	else
-		return min(distToTopEdg, distToBtmEdg);
-}
+// 	// return the correct min distance depending on where the test point is
+// 	if(0.0 <= testZ && testZ <= cylH)
+// 		return min(min(distToSides, distToTop), distToBtm);
+// 	else if(testX*testX + testY*testY <= cylR*cylR)
+// 		return min(distToTop, distToBtm);
+// 	else
+// 		return min(distToTopEdg, distToBtmEdg);
+// }
 
+//hack distanceToCylinder till more complex one works
+float distanceToCylinder(float cylR, float cylH, // cylinder size
+			 float cylX, float cylY, // center at bottom cylinder face
+			 float testX, float testY, float testZ)	// point from which to measure distance to cylinder
+{
+  return sqrt(pow((cylX-testX),2)+pow((cylY-testY),2));
+}
 // not normalized
 float likelihoodPerson(vector < ZPoint > &frame,
 					   float xPos, float yPos) {
 	
 	// tunable model parameters
-	const float EPSILON = 1.0/6.0;	
-	const float PERSON_RADIUS = 1.0/18.0;
+	const float EPSILON = 1.0/3.0;	
+	const float PERSON_RADIUS = 1.0/3.0;
 	const float PERSON_HEIGHT = 1.5;
 	
-	//cout << "entered likelihoodPerson and frame has " << frame.size() << " points in it" << endl;
-	//cout << "testing points: " << xPos << ", " << yPos << endl;
 	int countWithinEps = 0;
 	for(int i = 0; i < frame.size(); i++)
 	{
@@ -123,7 +128,6 @@ float likelihoodPerson(vector < ZPoint > &frame,
 		if(dist <= EPSILON)
 			countWithinEps++;
 	}
-	cout << "returning countWithinEps: " << countWithinEps << endl;
 	return (float)countWithinEps;
 }
 
