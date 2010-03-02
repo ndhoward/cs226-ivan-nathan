@@ -108,7 +108,7 @@ float likelihoodPerson(vector < ZPoint > &frame,
 	
 	// tunable model parameters
 	const float EPSILON = 1.0/6.0;	
-	const float PERSON_RADIUS = 1.0/6.0;
+	const float PERSON_RADIUS = 1.0/18.0;
 	const float PERSON_HEIGHT = 1.5;
 	
 	//cout << "entered likelihoodPerson and frame has " << frame.size() << " points in it" << endl;
@@ -123,7 +123,7 @@ float likelihoodPerson(vector < ZPoint > &frame,
 		if(dist <= EPSILON)
 			countWithinEps++;
 	}
-	//cout << "returning countWithinEps: " << countWithinEps << endl;
+	cout << "returning countWithinEps: " << countWithinEps << endl;
 	return (float)countWithinEps;
 }
 

@@ -30,9 +30,9 @@ Particle_filter::Particle_filter(float max_x, float min_x, float max_y, float mi
   for(int i=0; i<NUM_PARTICLES; i++) {
     particles[i].x = rand()*xRange/((float)RAND_MAX) + minX;
     particles[i].y = rand()*yRange/((float)RAND_MAX) + minY;
-    //particles[i].theta = 2*PI*((float)rand())/RAND_MAX;
-    particles[i].theta = PI;
-    cout << "initial points: " << particles[i].x << ", " << particles[i].y << ", theta: " << particles[i].theta << endl;
+    particles[i].theta = 2*PI*((float)rand())/RAND_MAX;
+    //particles[i].theta = PI/2;
+    //cout << "initial points: " << particles[i].x << ", " << particles[i].y << ", theta: " << particles[i].theta << endl;
   }
 }
 
@@ -103,14 +103,14 @@ void  Particle_filter::update() {
     int j = binarySearch(cumulativeWeightsIndex, 0, NUM_PARTICLES-1, weightIdx);
     // add x_t^i to X_t
     particles[i] = oldParticles[j];
-    jiggle_particle(particles[i]);
+    //jiggle_particle(particles[i]);
   }
 }
 
 // For now this is a uniform probabilty centered at the particle
 void Particle_filter::jiggle_particle(Particle &p) {
-  p.x = p.x - 0.5 + 1*rand()/RAND_MAX;
-  p.y = p.y - 0.5 + 1*rand()/RAND_MAX;
+  p.x = p.x - 0.01 + 0.02*rand()/RAND_MAX;
+  p.y = p.y - 0.01 + 0.02*rand()/RAND_MAX;
   p.theta = fmodf(p.theta - PI/4 + (PI/2)*((float)rand())/RAND_MAX, 2*PI);
 }
 
