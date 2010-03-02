@@ -4,7 +4,7 @@
 #include <vector>
 #include "geomModel.h"
 
-#define NUM_PARTICLES 10000
+#define NUM_PARTICLES 1000
 
 typedef struct Particle {
   float x;
