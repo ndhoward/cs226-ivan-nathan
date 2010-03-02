@@ -12,7 +12,7 @@
 
 using namespace std;
 
-float motionModelStepSize = 0.5;
+float motionModelStepSize = 1.0/7.0;
 
 Particle_filter::Particle_filter(float max_x, float min_x, float max_y, float min_y) {
   particles = new Particle[NUM_PARTICLES];
@@ -109,9 +109,11 @@ void  Particle_filter::update() {
 
 // For now this is a uniform probabilty centered at the particle
 void Particle_filter::jiggle_particle(Particle &p) {
-  p.x = p.x - 0.01 + 0.02*rand()/RAND_MAX;
-  p.y = p.y - 0.01 + 0.02*rand()/RAND_MAX;
-  p.theta = fmodf(p.theta - PI/4 + (PI/2)*((float)rand())/RAND_MAX, 2*PI);
+  const float POSJIGGLE=0.01; // in meters
+  const float THETAJIGGLE=90.0; // in degrees
+  p.x += POSJIGGLE*rand()/RAND_MAX;
+  p.y += POSJIGGLE*rand()/RAND_MAX;
+  p.theta = fmodf(p.theta - THETAJIGGLE/2.0*PI/180.0 + THETAJIGGLE*PI/180.0*((float)rand())/RAND_MAX, 2*PI);
 }
 
 Particle *Particle_filter::getParticles() {

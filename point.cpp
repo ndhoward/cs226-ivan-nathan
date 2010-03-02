@@ -64,7 +64,7 @@ void drawCoordinateAxes(void)
 	
 	// draw ground plane
 	glBegin(GL_POLYGON);
-	glColor4f(1,1,1,0.05);
+	glColor4f(1,1,1,0.05);	// transparent
 	glVertex3f(-PLANE_RANGE,-PLANE_RANGE, 0);
 	glVertex3f(-PLANE_RANGE, PLANE_RANGE, 0);
 	glVertex3f(PLANE_RANGE, PLANE_RANGE, 0);
@@ -348,6 +348,23 @@ void preProcessData(vector< vector<ZPoint> > &frames)
   
   frames = newFrames;
   
+  printf("Moving points up..."); 
+  float minZFound = 1000.0;
+  fflush(stdout);
+  for(int fr = 0; fr < frames.size(); fr++) {
+  	for(int i = 0; i < frames[fr].size(); i++) {
+  		if(frames[fr][i].z < minZFound)
+  			minZFound = frames[fr][i].z;
+  	}
+  }
+  // hack
+  minZFound = -1.0;
+  for(int fr = 0; fr < frames.size(); fr++) {
+  	for(int i = 0; i < frames[fr].size(); i++) {
+  		frames[fr][i].z -= minZFound;
+  	}
+  }
+  printf("done!");
 }
 
 
