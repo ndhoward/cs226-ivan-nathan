@@ -92,7 +92,7 @@ void  Particle_filter::update() {
     update_Xt(oldParticles[i]);
     // w_t^m = p(z_t | x_t^m)
     weights[i] = likelihood(oldParticles[i]);
-    cout << "weights["<< i << "] ("<< oldParticles[i].x << "," << oldParticles[i].y << "," << oldParticles[i].theta << "): computed by likelihood as: " << weights[i] << endl;
+    //cout << "weights["<< i << "] ("<< oldParticles[i].x << "," << oldParticles[i].y << "," << oldParticles[i].theta << "): computed by likelihood as: " << weights[i] << endl;
   }
 
   float cumulative = setup_importance_sample();
@@ -100,7 +100,9 @@ void  Particle_filter::update() {
   for (int i=0; i<NUM_PARTICLES; i++) {
     // draw i with probability ~ w_t^i
     float weightIdx = rand()*(cumulative/RAND_MAX);
+    //cout << "weightIdx: " << weightIdx << endl;
     int j = binarySearch(cumulativeWeightsIndex, 0, NUM_PARTICLES-1, weightIdx);
+    //cout << "j: : " << j << endl;
     // add x_t^i to X_t
     particles[i] = oldParticles[j];
     //jiggle_particle(particles[i]);
@@ -123,13 +125,16 @@ Particle *Particle_filter::getParticles() {
 // Taken from: http://www.fredosaurus.com/notes-cpp/algorithms/searching/binarysearch.html
 int Particle_filter::binarySearch(float sortedArray[], int first, int last, float key) {
    while (first <= last) {
-       int mid = (first + last) / 2;  // compute mid point.
-       if (key >= sortedArray[mid+1]) 
-           first = mid + 1;  // repeat search in top half.
-       else if (key < sortedArray[mid]) 
-           last = mid - 1; // repeat search in bottom half.
-       else
-           return mid;     // found it. return position
+     if (first == last)
+       return first;
+     int mid = (first + last) / 2;  // compute mid point.
+     if (key >= sortedArray[mid+1])
+       first = mid + 1;  // repeat search in top half.
+     else if (key < sortedArray[mid]) 
+       last = mid - 1; // repeat search in bottom half.
+     else
+       return mid;     // found it. return position
    }
+   cout << "OMG binarySearch failed... EPIC FAIL" << endl;
    return -(first + 1);    // failed to find key
 }
