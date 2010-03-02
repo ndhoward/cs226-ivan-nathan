@@ -30,7 +30,8 @@ Particle_filter::Particle_filter(float max_x, float min_x, float max_y, float mi
   for(int i=0; i<NUM_PARTICLES; i++) {
     particles[i].x = rand()*xRange/((float)RAND_MAX) + minX;
     particles[i].y = rand()*yRange/((float)RAND_MAX) + minY;
-    particles[i].theta = 2*PI*((float)rand())/RAND_MAX;
+    //particles[i].theta = 2*PI*((float)rand())/RAND_MAX;
+    particles[i].theta = PI;
     cout << "initial points: " << particles[i].x << ", " << particles[i].y << ", theta: " << particles[i].theta << endl;
   }
 }
@@ -58,6 +59,7 @@ void Particle_filter::bound_particle(Particle &p) {
 void Particle_filter::update_Xt(Particle &p) {
   p.x = p.x + cos(p.theta)*motionModelStepSize;
   p.y = p.y + sin(p.theta)*motionModelStepSize;
+  bound_particle(p);
 }
 
 float Particle_filter::setup_importance_sample() {

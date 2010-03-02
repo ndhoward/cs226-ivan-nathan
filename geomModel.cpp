@@ -107,9 +107,9 @@ float likelihoodPerson(vector < ZPoint > &frame,
 					   float xPos, float yPos) {
 	
 	// tunable model parameters
-	const float EPSILON = 1.0;	
-	const float PERSON_RADIUS = 1.0;
-	const float PERSON_HEIGHT = 10.0;
+	const float EPSILON = 1.0/6.0;	
+	const float PERSON_RADIUS = 1.0/6.0;
+	const float PERSON_HEIGHT = 1.5;
 	
 	//cout << "entered likelihoodPerson and frame has " << frame.size() << " points in it" << endl;
 	//cout << "testing points: " << xPos << ", " << yPos << endl;
