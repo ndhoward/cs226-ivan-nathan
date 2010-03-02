@@ -1,3 +1,4 @@
+# This is a makefile
 all: point.o particle-filter.o geomModel.o
 	g++ -lglut point.o particle-filter.o geomModel.o -o point
 point.o: point.cpp point.h particle-filter.h geomModel.h
