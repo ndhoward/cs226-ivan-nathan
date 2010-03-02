@@ -122,19 +122,27 @@ Particle *Particle_filter::getParticles() {
   return particles;
 }
 
-// Taken from: http://www.fredosaurus.com/notes-cpp/algorithms/searching/binarysearch.html
+
 int Particle_filter::binarySearch(float sortedArray[], int first, int last, float key) {
+  int origFirst = first;
+  int origLast = last;
    while (first <= last) {
      if (first == last)
        return first;
      int mid = (first + last) / 2;  // compute mid point.
-     if (key >= sortedArray[mid+1])
+     if (key > sortedArray[mid])
        first = mid + 1;  // repeat search in top half.
-     else if (key < sortedArray[mid]) 
-       last = mid - 1; // repeat search in bottom half.
+     else if (mid == 0) // special case where 0<= key <= sortedArray[0]
+       return mid;
+     else if (key <= sortedArray[mid-1]) 
+       last = mid-1; // repeat search in bottom half.
      else
        return mid;     // found it. return position
    }
-   cout << "OMG binarySearch failed... EPIC FAIL" << endl;
+   cout << "binarySearch failed..." << endl;
+   cout << "first: "<<first<<" last: "<<last<<" key: "<<key<<endl;
+   for (int i=origFirst; i<=origLast;i++){
+     cout<< "sortedArray["<<i<<"]: "<<sortedArray[i]<<endl;
+   }
    return -(first + 1);    // failed to find key
 }
