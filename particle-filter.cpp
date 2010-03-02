@@ -105,7 +105,7 @@ void  Particle_filter::update() {
     //cout << "j: : " << j << endl;
     // add x_t^i to X_t
     particles[i] = oldParticles[j];
-    //jiggle_particle(particles[i]);
+    jiggle_particle(particles[i]);
   }
 }
 
