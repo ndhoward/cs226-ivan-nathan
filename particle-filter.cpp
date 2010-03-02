@@ -12,19 +12,26 @@
 
 using namespace std;
 
-Particle_filter::Particle_filter() {
+float motionModelStepSize = 0.5;
+
+Particle_filter::Particle_filter(float max_x, float min_x, float max_y, float min_y) {
   particles = new Particle[NUM_PARTICLES];
   oldParticles = new Particle[NUM_PARTICLES];
   weights = new float[NUM_PARTICLES];
   cumulativeWeightsIndex = new float[NUM_PARTICLES];
   /* initialize random seed: */
   srand ( time(NULL) );
-  float xRange = MAX_X-MIN_X;
-  float yRange = MAX_Y-MIN_Y;
+  maxX = max_x;
+  minX = min_x;
+  maxY = max_y;
+  minY = min_y;
+  float xRange = maxX-minX;
+  float yRange = maxY-minY;
   for(int i=0; i<NUM_PARTICLES; i++) {
-    particles[i].x = rand()*xRange/RAND_MAX + MIN_X;
-    particles[i].y = rand()*yRange/RAND_MAX + MIN_Y;
-  // cout << "initial points: " << particles[i].x << ", " << particles[i].y << endl;
+    particles[i].x = rand()*xRange/((float)RAND_MAX) + minX;
+    particles[i].y = rand()*yRange/((float)RAND_MAX) + minY;
+    particles[i].theta = 2*PI*((float)rand())/RAND_MAX;
+    cout << "initial points: " << particles[i].x << ", " << particles[i].y << ", theta: " << particles[i].theta << endl;
   }
 }
 
@@ -36,23 +43,21 @@ Particle_filter::~Particle_filter() {
 }
 
 void Particle_filter::bound_particle(Particle &p) {
-    if (p.x > MAX_X) {
-      p.x = MAX_X;
-    } else if (p.x < MIN_X) {
-      p.x = MIN_X;
-    }
-    if (p.y > MAX_Y) {
-      p.y = MAX_Y;
-    } else if (p.y < MIN_Y) {
-      p.y = MIN_Y;
-    }
+  if (p.x > maxX) {
+    p.x = maxX;
+  } else if (p.x < minX) {
+    p.x = minX;
+  }
+  if (p.y > maxY) {
+    p.y = maxY;
+  } else if (p.y < minY) {
+    p.y = minY;
+  }
 }
 
-//TODO: this is crap, replace!
-//Dummy motion model - make realistic later
 void Particle_filter::update_Xt(Particle &p) {
-  p.x = p.x + 0.5;
-  p.y = p.y + 0.5;
+  p.x = p.x + cos(p.theta)*motionModelStepSize;
+  p.y = p.y + sin(p.theta)*motionModelStepSize;
 }
 
 float Particle_filter::setup_importance_sample() {
@@ -69,7 +74,7 @@ void Particle_filter::updateMeasurments(vector<ZPoint> *curFrame) {
 }
 
 float Particle_filter::likelihood(Particle &p) {
-  likelihoodPerson(*measurments, p.x, p.y);
+  return likelihoodPerson(*measurments, p.x, p.y);
 }
 
 
@@ -85,6 +90,7 @@ void  Particle_filter::update() {
     update_Xt(oldParticles[i]);
     // w_t^m = p(z_t | x_t^m)
     weights[i] = likelihood(oldParticles[i]);
+    //cout << "weights["<< i << "]: computed by likelihood as: " << weights[i] << endl;
   }
 
   float cumulative = setup_importance_sample();
@@ -92,16 +98,18 @@ void  Particle_filter::update() {
   for (int i=0; i<NUM_PARTICLES; i++) {
     // draw i with probability ~ w_t^i
     float weightIdx = rand()*(cumulative/RAND_MAX);
-    int j = binarySearch(weights, 0, NUM_PARTICLES-1, weightIdx);
+    int j = binarySearch(cumulativeWeightsIndex, 0, NUM_PARTICLES-1, weightIdx);
     // add x_t^i to X_t
     particles[i] = oldParticles[j];
+    jiggle_particle(particles[i]);
   }
 }
 
 // For now this is a uniform probabilty centered at the particle
 void Particle_filter::jiggle_particle(Particle &p) {
-  p.x = p.x - 1 + 2*rand()/RAND_MAX;
-  p.y = p.y - 1 + 2*rand()/RAND_MAX;
+  p.x = p.x - 0.5 + 1*rand()/RAND_MAX;
+  p.y = p.y - 0.5 + 1*rand()/RAND_MAX;
+  p.theta = fmodf(p.theta - PI/4 + (PI/2)*((float)rand())/RAND_MAX, 2*PI);
 }
 
 Particle *Particle_filter::getParticles() {
@@ -110,19 +118,6 @@ Particle *Particle_filter::getParticles() {
 
 // Taken from: http://www.fredosaurus.com/notes-cpp/algorithms/searching/binarysearch.html
 int Particle_filter::binarySearch(float sortedArray[], int first, int last, float key) {
-   // function:
-   //   Searches sortedArray[first]..sortedArray[last] for key.  
-   // returns: index of the matching element if it finds key, 
-   //         otherwise  -(index where it could be inserted)-1.
-   // parameters:
-   //   sortedArray in  array of sorted (ascending) values.
-   //   first, last in  lower and upper subscript bounds
-   //   key         in  value to search for.
-   // returns:
-   //   index of key, or -insertion_position -1 if key is not 
-   //                 in the array. This value can easily be
-   //                 transformed into the position to insert it.
-   
    while (first <= last) {
        int mid = (first + last) / 2;  // compute mid point.
        if (key >= sortedArray[mid+1]) 
@@ -130,7 +125,7 @@ int Particle_filter::binarySearch(float sortedArray[], int first, int last, floa
        else if (key < sortedArray[mid]) 
            last = mid - 1; // repeat search in bottom half.
        else
-           return mid;     // found it. return position /////
+           return mid;     // found it. return position
    }
    return -(first + 1);    // failed to find key
 }

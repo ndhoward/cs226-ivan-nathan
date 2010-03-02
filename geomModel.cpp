@@ -111,15 +111,19 @@ float likelihoodPerson(vector < ZPoint > &frame,
 	const float PERSON_RADIUS = 1.0;
 	const float PERSON_HEIGHT = 10.0;
 	
+	//cout << "entered likelihoodPerson and frame has " << frame.size() << " points in it" << endl;
+	//cout << "testing points: " << xPos << ", " << yPos << endl;
 	int countWithinEps = 0;
 	for(int i = 0; i < frame.size(); i++)
 	{
 		float dist = distanceToCylinder(PERSON_RADIUS, PERSON_HEIGHT,
-										xPos, yPos,	// person center
-										frame[i].x, frame[i].y, frame[i].z);
+						xPos, yPos,	// person center
+						frame[i].x, frame[i].y, frame[i].z);
+		
 		if(dist <= EPSILON)
 			countWithinEps++;
 	}
+	//cout << "returning countWithinEps: " << countWithinEps << endl;
 	return (float)countWithinEps;
 }
 

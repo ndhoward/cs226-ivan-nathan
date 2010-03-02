@@ -4,15 +4,12 @@
 #include <vector>
 #include "geomModel.h"
 
-#define MAX_X 200
-#define MAX_Y 200
-#define MIN_X -200
-#define MIN_Y -200
-#define NUM_PARTICLES 100
+#define NUM_PARTICLES 200
 
 typedef struct Particle {
   float x;
   float y;
+  float theta;
 } Particle;
 
 class Particle_filter {
@@ -24,11 +21,15 @@ public:
   float *weights;
   float *cumulativeWeightsIndex;
   vector <ZPoint> *measurments;
-  Particle_filter();
+  Particle_filter(float,float,float,float);
   ~Particle_filter();
   void update();
   void updateMeasurments(vector< ZPoint > *);
   Particle *getParticles();
+  float maxX;
+  float maxY;
+  float minX;
+  float minY;
 
 private:
   void bound_particle(Particle &);

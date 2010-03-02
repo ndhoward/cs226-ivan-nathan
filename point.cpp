@@ -26,7 +26,7 @@ float viewTheta = 80*PI/180.0;	// from Z axis
 float viewPhi   = 45*PI/180.0;	// from X axis
 float markerX = 0.0, markerY = 0.0, markerZ = 0.0;
 float meanX, meanY, meanZ;
-float minZ;
+float maxX, minX, maxY, minY, minZ;
 
 // different visualization modes
 enum ViewMode {VIEW_NORMAL, VIEW_MOVE_MARKER};
@@ -162,13 +162,13 @@ void draw(void)
 
 	//particle filter points
 	glColor3f(1,0,0);
-	glPointSize(5.0);
+	glPointSize(3);
 	glBegin(GL_POINTS);
 	Particle *particles = filter->getParticles();
 	for (int i=0; i<NUM_PARTICLES; i++) {
 	  Particle p = particles[i];
 	  glVertex3f(p.x, p.y, minZ);
-	  cout << "particle filter: " << p.x << ", " << p.y << endl;
+	  //cout << "particle filter: " << p.x << ", " << p.y << ", " << minZ << endl;
 	}
 	glEnd();
 	
@@ -204,6 +204,8 @@ void specialKey(int k, int x, int y)
 
 void key(unsigned char k, int x, int y)
 {
+  //used for debugging remove this line when done
+  Particle *parts = filter->getParticles();
 	switch (k)
 	{
 		case 'q':
@@ -240,6 +242,10 @@ void key(unsigned char k, int x, int y)
 		case '1':
 			if(curFrame < frames.size() - 1) curFrame++;
 			printf("Current frame: %d\n", frames[curFrame][0].t);
+			//for (int i=0; i<NUM_PARTICLES; i++) {
+			//  Particle p = parts[i];
+			//  cout << "particle filter: " << p.x << ", " << p.y << ", " << minZ << endl;
+			//}
 			filter->updateMeasurments(&frames[curFrame]);
 			filter->update();
 			break;
@@ -287,39 +293,54 @@ void preProcessData(vector< vector<ZPoint> > &frames)
   meanX = 0.0;
   meanY = 0.0;
   meanZ = 0.0;
-  minZ = 1000;
-	int totalPoints = 0;
-	
-	printf("-- Preprocessing data --\n");
-	printf("Subtracting off the mean..."); fflush(stdout);
-	// center the data set so that the mean is at 0,0,0
-	// calculate mean
-	for(int fr = 0; fr < frames.size(); fr++) {
-		for(int i = 0; i < frames[fr].size(); i++) {
-			meanX += frames[fr][i].x;
-			meanY += frames[fr][i].y;
-			meanZ += frames[fr][i].z;
-			if (frames[fr][i].z < minZ) {
-			  minZ = frames[fr][i].z;
-			}
-			totalPoints++;
-		}
-	}
-	meanX /= (float)totalPoints;
-	meanY /= (float)totalPoints;
-	meanZ /= (float)totalPoints;
-	
-	// subtract mean (and smallest value of z)
-	for(int fr = 0; fr < frames.size(); fr++) {
-		for(int i = 0; i < frames[fr].size(); i++) {
-			frames[fr][i].x -= meanX;
-			frames[fr][i].y -= meanY;
-			// also subtract away the z-mean (ground plane will cut through dataset)
-			//frames[fr][i].z -= meanZ;
-		}
-	}
-	printf("done!\n");
-	
+  maxX = -1000;
+  minX = 1000;
+  maxY = -1000;
+  minY = 1000;
+  int totalPoints = 0;
+  
+  printf("-- Preprocessing data --\n");
+  printf("Subtracting off the mean..."); fflush(stdout);
+  // center the data set so that the mean is at 0,0,0
+  // calculate mean
+  for(int fr = 0; fr < frames.size(); fr++) {
+    for(int i = 0; i < frames[fr].size(); i++) {
+      meanX += frames[fr][i].x;
+      meanY += frames[fr][i].y;
+      meanZ += frames[fr][i].z;
+      if (frames[fr][i].z < minZ)
+	minZ = frames[fr][i].z;
+      if (frames[fr][i].x < minX)
+	minX = frames[fr][i].x;
+      if (frames[fr][i].x > maxX)
+	maxX = frames[fr][i].x;
+      if (frames[fr][i].y < minY)
+	minY = frames[fr][i].y;
+      if (frames[fr][i].y > maxY)
+	maxY = frames[fr][i].y;
+      totalPoints++;
+    }
+  }
+  meanX /= (float)totalPoints;
+  meanY /= (float)totalPoints;
+  meanZ /= (float)totalPoints;
+  maxX -= meanX;
+  minX -= meanX;
+  maxY -= meanY;
+  minY -= meanY;
+  //hack to make the visualization look nicer
+  minZ = meanZ - 1.5;
+  // subtract mean (and smallest value of z)
+  for(int fr = 0; fr < frames.size(); fr++) {
+    for(int i = 0; i < frames[fr].size(); i++) {
+      frames[fr][i].x -= meanX;
+      frames[fr][i].y -= meanY;
+      // also subtract away the z-mean (ground plane will cut through dataset)
+      //frames[fr][i].z -= meanZ;
+    }
+  }
+  printf("done!\n");
+  
 }
 
 
@@ -332,14 +353,16 @@ int main(int argc, char **argv)
 		cout << argv[0] << " <point_cloud_file.txt>" << endl;
 		exit(0);
 	}
+
 	// read and display data
 	readDataFile(frames, argv[1]);
 	preProcessData(frames); 	// subtracts away the mean
+
+	// initialize particle filter
+	filter = new Particle_filter(maxX, minX, maxY, minY);
+
 	curFrame = 0;
 	printf("Current frame: %d\n", frames[curFrame][0].t);
-	
-	// initialize particle filter
-	filter = new Particle_filter();
 
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
