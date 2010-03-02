@@ -111,8 +111,8 @@ void  Particle_filter::update() {
 void Particle_filter::jiggle_particle(Particle &p) {
   const float POSJIGGLE=0.01; // in meters
   const float THETAJIGGLE=90.0; // in degrees
-  p.x += POSJIGGLE*rand()/RAND_MAX;
-  p.y += POSJIGGLE*rand()/RAND_MAX;
+  p.x += POSJIGGLE*(float)rand()/RAND_MAX;
+  p.y += POSJIGGLE*(float)rand()/RAND_MAX;
   p.theta = fmodf(p.theta - THETAJIGGLE/2.0*PI/180.0 + THETAJIGGLE*PI/180.0*((float)rand())/RAND_MAX, 2*PI);
 }
 
