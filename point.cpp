@@ -7,12 +7,20 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <set>
+#include <map>
+#include <utility> 
+
+#include "ANN/ANN.h"
 
 #include "point.h"
 #include "particle-filter.h"
 #include "geomModel.h"
 
+#define CONNECTED_COMPONENT_RADIUS 0.2
+
 using namespace std;
+
 
 // data
 vector < vector < ZPoint > > frames;
@@ -27,12 +35,109 @@ float viewPhi   = 45*PI/180.0;	// from X axis
 float markerX = 0.0, markerY = 0.0, markerZ = 0.0;
 float meanX, meanY, meanZ;
 float maxX, minX, maxY, minY, minZ;
+vector< vector<ZPoint> > connectedComponents;
+
 
 // different visualization modes
 enum ViewMode {VIEW_NORMAL, VIEW_MOVE_MARKER};
 ViewMode mode = VIEW_NORMAL;
 
 Particle_filter *filter;
+
+// Create Kd-tree, remove isolated points and return lists of
+// connected components.
+void findConnectedComponents(vector< ZPoint > &frame)
+{
+  //clear the previous list of connected componenets from the previous frame
+  connectedComponents.clear();
+
+  //load the points in the frame into the Kd-tree
+  int numberOfNearestNeighbors = 10;
+  int                  nPts = frame.size();// actual number of data points
+  ANNpointArray        dataPts;        // data points
+  ANNpoint             queryPt;        // query point
+  ANNidxArray          nnIdx;          // near neighbor indices
+  ANNdistArray         dists;          // near neighbor distances
+  ANNkd_tree*          kdTree;         // search structure
+  double eps = 0.0001;
+  queryPt  = annAllocPt(3);        // allocate query point
+  dataPts  = annAllocPts(nPts, 3); // allocate data points
+  // allocate near neigh indices  
+  nnIdx =  new ANNidx[numberOfNearestNeighbors];
+  // allocate near neighbor dists 
+  dists =  new ANNdist[numberOfNearestNeighbors];
+
+  for (int i=0; i<frame.size(); i++) {
+    double curPoint[3] = {frame[i].x, frame[i].y, frame[i].z};
+    dataPts[i][0] = curPoint[0];
+    dataPts[i][1] = curPoint[1];
+    dataPts[i][2] = curPoint[2];
+  }
+
+  // construct the kd-tree
+  kdTree = new ANNkd_tree( // build search structure
+                dataPts, // the data points
+                nPts,    // number of points
+                3);    // dimension of space
+
+  //find all connected components
+  
+  // set of points (their index) already assigned to a conneted components
+  set<int> accountedForPoints;
+  
+  for (int i=0; i<frame.size(); i++) {
+    //test if the point has already been added to a connected component
+    if (accountedForPoints.count(i) == 1) {
+      continue;
+    }
+    accountedForPoints.insert(i);
+    
+    // create a new connected component using curPoint as the seed
+    vector< ZPoint > connectedComponent;
+    set<int> pointsInConnectedComponent;
+    vector<int> pointsToSearchFrom;
+    pointsInConnectedComponent.insert(i);
+    pointsToSearchFrom.push_back(i);
+    while (pointsToSearchFrom.size() > 0) {
+      int cur = pointsToSearchFrom.back();
+      pointsToSearchFrom.pop_back();
+      connectedComponent.push_back(frame[cur]);
+      queryPt[0] = frame[i].x;
+      queryPt[1] = frame[i].y;
+      queryPt[2] = frame[i].z;
+      kdTree->annkSearch( // search
+			 queryPt,    // query point
+			 numberOfNearestNeighbors,// number of near neighbors
+			 nnIdx,      // nearest neighbors (returned)
+			 dists,      // distance (returned)
+			 eps);       // error bound
+
+      // use all points that are with in  CONNECTED_COMPONENT_RADIUS of query point
+      for (int j=0; j < numberOfNearestNeighbors; j++) {
+	if (dists[j] < CONNECTED_COMPONENT_RADIUS * CONNECTED_COMPONENT_RADIUS) {
+	  int index = nnIdx[j];
+	  // add this point the connected component
+	  if (pointsInConnectedComponent.count(index) == 0) {
+	    pointsInConnectedComponent.insert(index);
+	    pointsToSearchFrom.push_back(index);
+	    accountedForPoints.insert(index);
+	    connectedComponent.push_back(frame[index]);
+	  }
+	} 
+      }
+    }
+    // Only add the connectedComponent if it contains more than one point
+    if (connectedComponent.size() > 1) {
+      connectedComponents.push_back(connectedComponent);
+    }
+  }
+
+  // clean up the kd-tree
+  delete [] nnIdx;
+  delete [] dists;
+  delete kdTree;
+  annClose();
+}
 
 void resize(int w, int h)
 {
@@ -143,22 +248,33 @@ void draw(void)
 	drawMarker(markerX, markerY, markerZ);
 	
 	// test points
-	glColor3f(1,1,1);
-	glPointSize(1.0);
-	glBegin(GL_POINTS);
-	// test data
-	//for(int i = 0; i < 10; i++)
-	//	for(int j = 0; j < 10; j++)
-	//		for(int k = 0; k < 10; k++)
-	//			glVertex3f(i,j,k);	
-
-	// point data
-	for(int i = 0; i < frames[curFrame].size(); i++)
-	{
-		glVertex3f(frames[curFrame][i].x, frames[curFrame][i].y, frames[curFrame][i].z);
+	//glColor3f(1,1,1);
+	//glPointSize(1.0);
+	//glBegin(GL_POINTS);
+	//for(int i = 0; i < frames[curFrame].size(); i++)
+	  //	{
+	  //glVertex3f(frames[curFrame][i].x, frames[curFrame][i].y, frames[curFrame][i].z);
 		//cout << "point: " << frames[curFrame][i].x << ", " << frames[curFrame][i].y << ", " <<  frames[curFrame][i].z << endl;
+		//}
+	//glEnd();
+	int numComponents = connectedComponents.size();
+	for (int i=0; i < numComponents; i++) {
+	  vector< ZPoint > component = connectedComponents[i];
+	  double colorVal = ((double) i)/numComponents;
+	  if (i % 3 == 0)
+	    glColor3f(colorVal, 0, 0);
+	  else if (i % 3 == 1)
+	    glColor3f(0, colorVal, 0);
+	  else if (i % 3 == 2)
+	    glColor3f(0, 0, colorVal);
+	  glPointSize(2.0);
+	  glBegin(GL_POINTS);
+	  for (int j=0; j < component.size(); j++) {
+	    glVertex3f(component[j].x, component[j].y, component[j].z);
+	  }
+	  glEnd();
 	}
-	glEnd();
+
 
 	//particle filter points
 	glColor3f(1,0,0);
@@ -240,12 +356,14 @@ void key(unsigned char k, int x, int y)
 				viewTheta = 179.99*PI/180.0;
 			break;
 		case '1':
-			if(curFrame < frames.size() - 1) curFrame++;
+			if (curFrame < frames.size() - 1) curFrame++;			
 			printf("Current frame: %d\n", frames[curFrame][0].t);
 			//for (int i=0; i<NUM_PARTICLES; i++) {
 			//  Particle p = parts[i];
 			//  cout << "particle filter: " << p.x << ", " << p.y << ", " << minZ << endl;
 			//}
+			//findConnectedComponents(frames[curFrame], connectedComponents);
+			findConnectedComponents(frames[curFrame]);
 			filter->updateMeasurments(&frames[curFrame]);
 			filter->update();
 			break;
@@ -386,6 +504,7 @@ int main(int argc, char **argv)
 	filter = new Particle_filter(maxX, minX, maxY, minY);
 
 	curFrame = 0;
+	findConnectedComponents(frames[curFrame]);
 	printf("Current frame: %d\n", frames[curFrame][0].t);
 
 	glutInit(&argc, argv);

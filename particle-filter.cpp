@@ -102,11 +102,13 @@ void  Particle_filter::update() {
     float weightIdx = rand()*(cumulative/RAND_MAX);
     //cout << "weightIdx: " << weightIdx << endl;
     int j = binarySearch(cumulativeWeightsIndex, 0, NUM_PARTICLES-1, weightIdx);
-    //cout << "j: : " << j << endl;
     // add x_t^i to X_t
     particles[i] = oldParticles[j];
     jiggle_particle(particles[i]);
   }
+
+  //randomly resample 1/3 of the particles
+  random_resample(0.1);
 }
 
 // For now this is a uniform probabilty centered at the particle
@@ -116,6 +118,20 @@ void Particle_filter::jiggle_particle(Particle &p) {
   p.x += POSJIGGLE*(float)rand()/RAND_MAX;
   p.y += POSJIGGLE*(float)rand()/RAND_MAX;
   p.theta = fmodf(p.theta - THETAJIGGLE/2.0*PI/180.0 + THETAJIGGLE*PI/180.0*((float)rand())/RAND_MAX, 2*PI);
+}
+
+// Randomly resample some fraction of the particles with a uniform distribution
+void Particle_filter::random_resample(float prob) {
+  float xRange = maxX-minX;
+  float yRange = maxY-minY;
+  for (int i=0; i<NUM_PARTICLES; i++) {
+    float t = ((float)rand())/RAND_MAX;
+    if (t <= prob) {
+      particles[i].x = rand()*xRange/((float)RAND_MAX) + minX;
+      particles[i].y = rand()*yRange/((float)RAND_MAX) + minY;
+      particles[i].theta = 2*PI*((float)rand())/RAND_MAX;
+    }
+  }
 }
 
 Particle *Particle_filter::getParticles() {

@@ -4,7 +4,7 @@
 #include <vector>
 #include "geomModel.h"
 
-#define NUM_PARTICLES 20000
+#define NUM_PARTICLES 10
 
 typedef struct Particle {
   float x;
@@ -37,6 +37,7 @@ private:
   void update_Xt(Particle &);
   float setup_importance_sample();
   float likelihood(Particle &);
+  void random_resample(float);
   int binarySearch(float[], int, int, float);
 };
 
