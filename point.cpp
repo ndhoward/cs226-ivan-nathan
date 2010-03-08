@@ -36,14 +36,23 @@ float viewPhi   = 45*PI/180.0;	// from X axis
 float markerX = 0.0, markerY = 0.0, markerZ = 0.0;
 float meanX, meanY, meanZ;
 float maxX, minX, maxY, minY, minZ;
-vector< vector<ZPoint> > connectedComponents;
 
+//display options
+bool dispRawPoints = false;
+bool dispParticlesTracked = true;
+bool dispParticlesPotential = false;
+bool dispBlobs = true;
+
+// list of connected components
+vector< vector<ZPoint> > connectedComponents;
+vector< Particle_filter *> potentialPerson;
+vector< Particle_filter *> trackedPerson;
 
 // different visualization modes
 enum ViewMode {VIEW_NORMAL, VIEW_MOVE_MARKER};
 ViewMode mode = VIEW_NORMAL;
 
-Particle_filter *filter;
+//Particle_filter *filter;
 
 // Create Kd-tree, remove isolated points and return lists of
 // connected components.
@@ -250,47 +259,70 @@ void draw(void)
 	drawCoordinateAxes();
 	drawMarker(markerX, markerY, markerZ);
 	
-	// test points
-	//glColor3f(1,1,1);
-	//glPointSize(1.0);
-	//glBegin(GL_POINTS);
-	//for(int i = 0; i < frames[curFrame].size(); i++)
-	  //	{
-	  //glVertex3f(frames[curFrame][i].x, frames[curFrame][i].y, frames[curFrame][i].z);
-		//cout << "point: " << frames[curFrame][i].x << ", " << frames[curFrame][i].y << ", " <<  frames[curFrame][i].z << endl;
-		//}
-	//glEnd();
-	int numComponents = connectedComponents.size();
-	for (int i=0; i < numComponents; i++) {
-	  vector< ZPoint > component = connectedComponents[i];
-	  double colorVal = ((double) i)/numComponents;
-	  if (i % 3 == 0)
-	    glColor3f(colorVal, 0, 0);
-	  else if (i % 3 == 1)
-	    glColor3f(0, colorVal, 0);
-	  else if (i % 3 == 2)
-	    glColor3f(0, 0, colorVal);
-	  glPointSize(2.0);
+	// The raw points from the frame
+	if (dispRawPoints) {
+	  glColor3f(1,1,1);
+	  glPointSize(1.0);
 	  glBegin(GL_POINTS);
-	  for (int j=0; j < component.size(); j++) {
-	    glVertex3f(component[j].x, component[j].y, component[j].z);
+	  for(int i = 0; i < frames[curFrame].size(); i++) {
+	    glVertex3f(frames[curFrame][i].x,
+		       frames[curFrame][i].y,
+		       frames[curFrame][i].z);
+	  }
+	  glEnd();
+	}
+	
+	//The blobs found as connected components
+	if (dispBlobs) {
+	  int numComponents = connectedComponents.size();
+	  for (int i=0; i < numComponents; i++) {
+	    vector< ZPoint > component = connectedComponents[i];
+	    double colorVal = ((double) i)/numComponents;
+	    if (i % 3 == 0)
+	      glColor3f(colorVal, 0, 0);
+	    else if (i % 3 == 1)
+	      glColor3f(0, colorVal, 0);
+	    else if (i % 3 == 2)
+	      glColor3f(0, 0, colorVal);
+	    glPointSize(2.0);
+	    glBegin(GL_POINTS);
+	    for (int j=0; j < component.size(); j++) {
+	      glVertex3f(component[j].x,
+			 component[j].y,
+			 component[j].z);
+	    }
+	    glEnd();
+	  }
+	}
+
+	//particle filter points
+	if (dispParticlesPotential) {
+	  glColor3f(1,0,0);
+	  glPointSize(3);
+	  glBegin(GL_POINTS);
+	  for (int n=0; n<potentialPerson.size(); n++) {
+	    Particle *particles = potentialPerson[n]->getParticles();
+	    for (int i=0; i<NUM_PARTICLES; i++) {
+	      Particle p = particles[i];
+	      glVertex3f(p.x, p.y, minZ);
+	    }
 	  }
 	  glEnd();
 	}
 
-
-	//particle filter points
-	glColor3f(1,0,0);
-	glPointSize(3);
-	glBegin(GL_POINTS);
-	Particle *particles = filter->getParticles();
-	for (int i=0; i<NUM_PARTICLES; i++) {
-	  Particle p = particles[i];
-	  glVertex3f(p.x, p.y, minZ);
-	  //cout << "particle filter: " << p.x << ", " << p.y << ", " << minZ << endl;
+	if (dispParticlesTracked) {
+	  glColor3f(0,1,0);
+	  glPointSize(3);
+	  glBegin(GL_POINTS);
+	  for (int n=0; n<trackedPerson.size(); n++) {
+	    Particle *particles = trackedPerson[n]->getParticles();
+	    for (int i=0; i<NUM_PARTICLES; i++) {
+	      Particle p = particles[i];
+	      glVertex3f(p.x, p.y, minZ);
+	    }
+	  }
+	  glEnd();
 	}
-	glEnd();
-	
 	glFlush();
 	glutPostRedisplay();
 	glutSwapBuffers();	
@@ -323,59 +355,76 @@ void specialKey(int k, int x, int y)
 
 void key(unsigned char k, int x, int y)
 {
-  //used for debugging remove this line when done
-  Particle *parts = filter->getParticles();
-	switch (k)
-	{
-		case 'q':
-			exit(0); 
-			break;
-		case 'd':
-			ctrX -= 0.05*viewRho*cos(viewTheta)*sin(viewPhi);
-			ctrY += 0.05*viewRho*cos(viewTheta)*cos(viewPhi);
-			break;
-		case 'a':
-			ctrX += 0.05*viewRho*cos(viewTheta)*sin(viewPhi);
-			ctrY -= 0.05*viewRho*cos(viewTheta)*cos(viewPhi);
-			break;
-		case 'w':
-			ctrX -= 0.05*viewRho*sin(viewTheta)*cos(viewPhi);
-			ctrY -= 0.05*viewRho*sin(viewTheta)*sin(viewPhi);
-			//ctrZ -= 0.05*viewRho*cos(viewTheta);
-			break;
-		case 's':
-			ctrX += 0.05*viewRho*sin(viewTheta)*cos(viewPhi);
-			ctrY += 0.05*viewRho*sin(viewTheta)*sin(viewPhi);
-			//ctrZ += 0.05*viewRho*cos(viewTheta);
-			break;
-		case 'e':
-			viewTheta -= 3.0*PI/180.0;
-			if(viewTheta < 0.1)	// prevent from discontinuous viewing
-				viewTheta = 0.01;
-			break;
-		case 'c':
-			viewTheta += 3.0*PI/180.0;
-			if(viewTheta > 179.9*PI/180.0)
-				viewTheta = 179.99*PI/180.0;
-			break;
-		case '1':
-			if (curFrame < frames.size() - 1) curFrame++;			
-			printf("Current frame: %d\n", frames[curFrame][0].t);
-			//for (int i=0; i<NUM_PARTICLES; i++) {
-			//  Particle p = parts[i];
-			//  cout << "particle filter: " << p.x << ", " << p.y << ", " << minZ << endl;
-			//}
-			//findConnectedComponents(frames[curFrame], connectedComponents);
-			findConnectedComponents(frames[curFrame]);
-			cout << "there are " << connectedComponents.size() << " blobs" << endl; 
-			filter->updateMeasurments(&frames[curFrame]);
-			filter->update();
-			break;
-		case '!':
-			if(curFrame > 0) curFrame--;
-			printf("Current frame: %d\n", frames[curFrame][0].t);
-			break;
-	}
+  switch (k)
+    {
+    case 'q':
+      exit(0); 
+      break;
+    case 'p':
+      dispRawPoints =  !dispRawPoints;
+      break;
+    case 'o':
+      dispBlobs = !dispBlobs;
+      break;
+    case 'i':
+      dispParticlesPotential = !dispParticlesPotential;
+      break;
+    case 'u':
+      dispParticlesTracked = !dispParticlesTracked;
+      break;
+    case 'd':
+      ctrX -= 0.05*viewRho*cos(viewTheta)*sin(viewPhi);
+      ctrY += 0.05*viewRho*cos(viewTheta)*cos(viewPhi);
+      break;
+    case 'a':
+      ctrX += 0.05*viewRho*cos(viewTheta)*sin(viewPhi);
+      ctrY -= 0.05*viewRho*cos(viewTheta)*cos(viewPhi);
+      break;
+    case 'w':
+      ctrX -= 0.05*viewRho*sin(viewTheta)*cos(viewPhi);
+      ctrY -= 0.05*viewRho*sin(viewTheta)*sin(viewPhi);
+      //ctrZ -= 0.05*viewRho*cos(viewTheta);
+      break;
+    case 's':
+      ctrX += 0.05*viewRho*sin(viewTheta)*cos(viewPhi);
+      ctrY += 0.05*viewRho*sin(viewTheta)*sin(viewPhi);
+      //ctrZ += 0.05*viewRho*cos(viewTheta);
+      break;
+    case 'e':
+      viewTheta -= 3.0*PI/180.0;
+      if(viewTheta < 0.1)	// prevent from discontinuous viewing
+	viewTheta = 0.01;
+      break;
+    case 'c':
+      viewTheta += 3.0*PI/180.0;
+      if(viewTheta > 179.9*PI/180.0)
+	viewTheta = 179.99*PI/180.0;
+      break;
+    case '1':
+      if (curFrame < frames.size() - 1) curFrame++;			
+      printf("Current frame: %d\n", frames[curFrame][0].t);
+      //for (int i=0; i<NUM_PARTICLES; i++) {
+      //  Particle p = parts[i];
+      //  cout << "particle filter: " << p.x << ", " << p.y << ", " << minZ << endl;
+      //}
+      findConnectedComponents(frames[curFrame]);
+      cout << "there are " << connectedComponents.size() << " blobs" << endl; 
+      for (int i=0; i<trackedPerson.size(); i++) {
+	trackedPerson[i]->updateMeasurments(&frames[curFrame]);
+	trackedPerson[i]->update();
+      }
+      for (int i=0; i<potentialPerson.size(); i++) {
+	potentialPerson[i]->updateMeasurments(&frames[curFrame]);
+	potentialPerson[i]->update();
+      }
+      //filter->updateMeasurments(&frames[curFrame]);
+      //filter->update();
+      break;
+    case '!':
+      if(curFrame > 0) curFrame--;
+      printf("Current frame: %d\n", frames[curFrame][0].t);
+      break;
+    }
 }
 
 void readDataFile(vector < vector<ZPoint> > &frames, char *filename)
@@ -448,18 +497,18 @@ void preProcessData(vector< vector<ZPoint> > &frames)
   fflush(stdout);
   vector< vector<ZPoint> > newFrames;
   for(int fr = 0; fr < frames.size(); fr++)
-  {
-  	vector< ZPoint > thisFrame;
-  	newFrames.push_back(thisFrame);
-  	for(int i = 0; i < frames[fr].size(); i++)
+    {
+      vector< ZPoint > thisFrame;
+      newFrames.push_back(thisFrame);
+      for(int i = 0; i < frames[fr].size(); i++)
   	{
-  		if(-25.0 <= frames[fr][i].x && frames[fr][i].x <= 0.0 &&
-  		   -25.0 <= frames[fr][i].y && frames[fr][i].y <= 0.0)
-  		{
-  			newFrames.back().push_back(frames[fr][i]);
-  		}
+	  if(-25.0 <= frames[fr][i].x && frames[fr][i].x <= 0.0 &&
+	     -25.0 <= frames[fr][i].y && frames[fr][i].y <= 0.0)
+	    {
+	      newFrames.back().push_back(frames[fr][i]);
+	    }
   	}
-  }
+    }
   printf("done!\n");
   
   maxX = 0;
@@ -482,9 +531,9 @@ void preProcessData(vector< vector<ZPoint> > &frames)
   // hack
   minZFound = -1.0;
   for(int fr = 0; fr < frames.size(); fr++) {
-  	for(int i = 0; i < frames[fr].size(); i++) {
-  		frames[fr][i].z -= minZFound;
-  	}
+    for(int i = 0; i < frames[fr].size(); i++) {
+      frames[fr][i].z -= minZFound;
+    }
   }
   printf("done!");
 }
@@ -492,37 +541,36 @@ void preProcessData(vector< vector<ZPoint> > &frames)
 
 int main(int argc, char **argv)
 {
-	
-	// read the points
-	if(argc < 2) 
-	{
-		cout << argv[0] << " <point_cloud_file.txt>" << endl;
-		exit(0);
-	}
-
-	// read and display data
-	readDataFile(frames, argv[1]);
-	preProcessData(frames); 	// subtracts away the mean
-
-	// initialize particle filter
-	filter = new Particle_filter(maxX, minX, maxY, minY);
-
-	curFrame = 0;
-	findConnectedComponents(frames[curFrame]);
-	printf("Current frame: %d\n", frames[curFrame][0].t);
-
-	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
-	glutInitWindowSize(600, 500);
-	
-	glutCreateWindow("Points");
-	
-	glutSpecialFunc(specialKey);
-	glutKeyboardFunc(key);
-	//glutVisibilityFunc(visible);
-	glutDisplayFunc(draw);
-	glutReshapeFunc(resize);
-	
-	glutMainLoop();
-	return 0;
+  // read the points
+  if(argc < 2) 
+    {
+      cout << argv[0] << " <point_cloud_file.txt>" << endl;
+      exit(0);
+    }
+  
+  // read and display data
+  readDataFile(frames, argv[1]);
+  preProcessData(frames); 	// subtracts away the mean
+  
+  // initialize particle filter
+  //filter = new Particle_filter(maxX, minX, maxY, minY);
+  
+  curFrame = 0;
+  findConnectedComponents(frames[curFrame]);
+  printf("Current frame: %d\n", frames[curFrame][0].t);
+  
+  glutInit(&argc, argv);
+  glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
+  glutInitWindowSize(600, 500);
+  
+  glutCreateWindow("Points");
+  
+  glutSpecialFunc(specialKey);
+  glutKeyboardFunc(key);
+  //glutVisibilityFunc(visible);
+  glutDisplayFunc(draw);
+  glutReshapeFunc(resize);
+  
+  glutMainLoop();
+  return 0;
 }
