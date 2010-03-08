@@ -45,8 +45,12 @@ bool dispBlobs = true;
 
 // list of connected components
 vector< vector<ZPoint> > connectedComponents;
+vector< ZPoint > connectedComponentsMean;
 vector< Particle_filter *> potentialPerson;
+vector< Particle > potentialPersonMean;
 vector< Particle_filter *> trackedPerson;
+vector< Particle > trackedPersonMean;
+
 
 // different visualization modes
 enum ViewMode {VIEW_NORMAL, VIEW_MOVE_MARKER};
@@ -54,12 +58,50 @@ ViewMode mode = VIEW_NORMAL;
 
 //Particle_filter *filter;
 
+//find the mean (x,y) of a particle a filter
+void findParticleFilterMean(Particle &mean, Particle_filter *filter) {
+  mean.x = 0;
+  mean.y = 0;
+  mean.theta = 0;
+  Particle* particles = filter->getParticles();
+  for (int i=0; i<NUM_PARTICLES; i++) {
+    mean.x += particles[i].x;
+    mean.y += particles[i].y;
+    mean.theta += particles[i].theta;
+  }
+  mean.x = mean.x / NUM_PARTICLES;
+  mean.y = mean.y / NUM_PARTICLES;
+  mean.theta = mean.theta / NUM_PARTICLES;
+}
+
+void findConnectedComponentMean(ZPoint &mean, vector<ZPoint> &component) {
+  mean.x = 0;
+  mean.y = 0;
+  mean.z = 0;
+  int numPoints = component.size();
+  for (int i=0; i<numPoints; i++) {
+    mean.x += component[i].x;
+    mean.y += component[i].y;
+    mean.z += component[i].z;
+  }
+  mean.x = mean.x / numPoints;
+  mean.y = mean.y / numPoints;
+  mean.z = mean.z / numPoints;  
+}
+
+float distSq(ZPoint &point, Particle &particle) {
+  float xval = point.x - particle.x;
+  float yval = point.y - particle.y;
+  return xval*xval+yval*yval;
+}
+
 // Create Kd-tree, remove isolated points and return lists of
 // connected components.
 void findConnectedComponents(vector< ZPoint > &frame)
 {
   //clear the previous list of connected componenets from the previous frame
   connectedComponents.clear();
+  connectedComponentsMean.clear();
 
   //load the points in the frame into the Kd-tree
   int numberOfNearestNeighbors = 40;
@@ -83,13 +125,13 @@ void findConnectedComponents(vector< ZPoint > &frame)
     dataPts[i][1] = curPoint[1];
     dataPts[i][2] = curPoint[2];
   }
-
+  
   // construct the kd-tree
   kdTree = new ANNkd_tree( // build search structure
-                dataPts, // the data points
-                nPts,    // number of points
-                3);    // dimension of space
-
+			  dataPts, // the data points
+			  nPts,    // number of points
+			  3);    // dimension of space
+  
   //find all connected components
   
   // set of points (their index) already assigned to a conneted components
@@ -121,7 +163,7 @@ void findConnectedComponents(vector< ZPoint > &frame)
 			 nnIdx,      // nearest neighbors (returned)
 			 dists,      // distance (returned)
 			 eps);       // error bound
-
+      
       // use all points that are with in  CONNECTED_COMPONENT_RADIUS of query point
       for (int j=0; j < numberOfNearestNeighbors; j++) {
 	if (dists[j] < CONNECTED_COMPONENT_RADIUS * CONNECTED_COMPONENT_RADIUS) {
@@ -136,7 +178,7 @@ void findConnectedComponents(vector< ZPoint > &frame)
 	} 
       }
     }
-    // Only add the connectedComponent if it contains more than one point
+    // Only add the connectedComponent if it contains more than MIN points
     if (connectedComponent.size() > MIN_CONNECTED_COMPONENT_SIZE) {
       connectedComponents.push_back(connectedComponent);
     }
@@ -149,6 +191,65 @@ void findConnectedComponents(vector< ZPoint > &frame)
   delete [] dists;
   delete kdTree;
   annClose();
+
+  //compute the means for each connectedComponents
+  for (int i=0; i<connectedComponents.size(); i++) {
+    ZPoint mean;
+    findConnectedComponentMean(mean, connectedComponents[i]);
+    connectedComponentsMean.push_back(mean);
+  }
+}
+
+void identifyNewConnectedComponentsToClassify() {
+  // for each connected componet find the nearest particle filter
+  // if the nearest is too far away, create a new particle filter
+  // centered on the connected component
+  potentialPersonMean.clear();
+  trackedPersonMean.clear();
+  for (int j=0; j<potentialPerson.size(); j++) {
+    Particle mean;
+    findParticleFilterMean(mean, potentialPerson[j]);
+    potentialPersonMean.push_back(mean);
+  }
+  for (int j=0; j<trackedPerson.size(); j++) {
+    Particle mean;
+    findParticleFilterMean(mean, trackedPerson[j]);
+    trackedPersonMean.push_back(mean);
+  }
+  
+  for (int i=0; i < connectedComponentsMean.size(); i++) {
+    ZPoint blobMean = connectedComponentsMean[i];
+    
+    //find the nearest particle filter mean
+    bool alreadyTracked = false;
+    for (int j=0; j<potentialPersonMean.size(); j++) {
+      Particle particle = potentialPersonMean[j];
+      float d = distSq(blobMean, particle);
+      if (d < 1.5) {
+	alreadyTracked = true;
+      }
+    }
+
+    if (!alreadyTracked) {
+      for (int j=0; j<trackedPersonMean.size(); j++) {
+	Particle particle = trackedPersonMean[j];
+	float d = distSq(blobMean, particle);
+	if (d < 1.5) {
+	  alreadyTracked = true;
+	}
+      }
+    }
+
+    // The connected component does not have a particle filter assigned to
+    // it. Create a new particle filter and center it around the blob.
+    if (!alreadyTracked) {
+      Particle_filter *filter = new Particle_filter(blobMean.x+0.6,
+						    blobMean.x-0.6,
+						    blobMean.y+0.6,
+						    blobMean.y-0.6);
+      potentialPerson.push_back(filter);
+    }
+  }
 }
 
 void resize(int w, int h)
@@ -417,6 +518,9 @@ void key(unsigned char k, int x, int y)
 	potentialPerson[i]->updateMeasurments(&frames[curFrame]);
 	potentialPerson[i]->update();
       }
+      //TODO: remove particle filters whose mean likelihood is too low
+      identifyNewConnectedComponentsToClassify();
+
       //filter->updateMeasurments(&frames[curFrame]);
       //filter->update();
       break;
