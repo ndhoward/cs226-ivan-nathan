@@ -17,7 +17,8 @@
 #include "particle-filter.h"
 #include "geomModel.h"
 
-#define CONNECTED_COMPONENT_RADIUS 0.2
+#define CONNECTED_COMPONENT_RADIUS 0.3
+#define MIN_CONNECTED_COMPONENT_SIZE 10
 
 using namespace std;
 
@@ -52,7 +53,7 @@ void findConnectedComponents(vector< ZPoint > &frame)
   connectedComponents.clear();
 
   //load the points in the frame into the Kd-tree
-  int numberOfNearestNeighbors = 10;
+  int numberOfNearestNeighbors = 40;
   int                  nPts = frame.size();// actual number of data points
   ANNpointArray        dataPts;        // data points
   ANNpoint             queryPt;        // query point
@@ -87,7 +88,7 @@ void findConnectedComponents(vector< ZPoint > &frame)
   
   for (int i=0; i<frame.size(); i++) {
     //test if the point has already been added to a connected component
-    if (accountedForPoints.count(i) == 1) {
+    if (accountedForPoints.count(i) > 0) {
       continue;
     }
     accountedForPoints.insert(i);
@@ -99,12 +100,12 @@ void findConnectedComponents(vector< ZPoint > &frame)
     pointsInConnectedComponent.insert(i);
     pointsToSearchFrom.push_back(i);
     while (pointsToSearchFrom.size() > 0) {
-      int cur = pointsToSearchFrom.back();
+      int curPtIdx = pointsToSearchFrom.back();
       pointsToSearchFrom.pop_back();
-      connectedComponent.push_back(frame[cur]);
-      queryPt[0] = frame[i].x;
-      queryPt[1] = frame[i].y;
-      queryPt[2] = frame[i].z;
+      connectedComponent.push_back(frame[curPtIdx]);
+      queryPt[0] = frame[curPtIdx].x;
+      queryPt[1] = frame[curPtIdx].y;
+      queryPt[2] = frame[curPtIdx].z;
       kdTree->annkSearch( // search
 			 queryPt,    // query point
 			 numberOfNearestNeighbors,// number of near neighbors
@@ -127,12 +128,14 @@ void findConnectedComponents(vector< ZPoint > &frame)
       }
     }
     // Only add the connectedComponent if it contains more than one point
-    if (connectedComponent.size() > 1) {
+    if (connectedComponent.size() > MIN_CONNECTED_COMPONENT_SIZE) {
       connectedComponents.push_back(connectedComponent);
     }
   }
 
   // clean up the kd-tree
+  annDeallocPt(queryPt);
+  annDeallocPts(dataPts);
   delete [] nnIdx;
   delete [] dists;
   delete kdTree;
@@ -364,6 +367,7 @@ void key(unsigned char k, int x, int y)
 			//}
 			//findConnectedComponents(frames[curFrame], connectedComponents);
 			findConnectedComponents(frames[curFrame]);
+			cout << "there are " << connectedComponents.size() << " blobs" << endl; 
 			filter->updateMeasurments(&frames[curFrame]);
 			filter->update();
 			break;
