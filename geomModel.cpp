@@ -3,6 +3,10 @@
 #include <iostream>
 #include "geomModel.h"
 
+// for pca
+#include <Eigen/Core>
+#include <Eigen/Eigen>
+
 using namespace std;
 
 /*
@@ -102,6 +106,54 @@ float distanceToSet(vector < GMPoint > &samples,
 // 		return min(distToTopEdg, distToBtmEdg);
 // }
 
+// --------------------------------------------------------------------
+// returns the ratio of the largest eigenvalue to the second largest
+// eigenvalue of the covariance matrix when doing PCA on points belonging
+// to a blob.
+//
+// inspired by PCA code from 
+// http://codingplayground.blogspot.com/2010/01/pca-dimensional-reduction-in-eigen.html
+// --------------------------------------------------------------------
+float pVal(vector < ZPoint > &blob)
+{
+	using namespace Eigen;
+	unsigned int const m = 3;			// dimension of each point
+	unsigned int n = blob.size();		// number of points
+	
+	MatrixXf DataPoints = MatrixXf::Zero(m,n);	// matrix (m x n)
+	for(int r = 0; r < blob.size(); r++)
+	{
+		DataPoints(r,0) = blob[r].x;
+		DataPoints(r,1) = blob[r].y;
+		DataPoints(r,2) = blob[r].z;
+	}
+	
+	double mean;
+	VectorXf meanVector;
+	
+	// for each point, 
+	// center the point with the mean along all the coordinates
+	for(int i = 0; i < DataPoints.cols(); i++)
+	{
+		mean = (DataPoints.col(i).sum())/m;			// compute mean
+		meanVector = VectorXf::Constant(m, mean);	// create vector with constant value = mean
+		DataPoints.col(i) -= meanVector;			// subtract away the mean
+	}
+	
+	// get the covariance matrix
+	MatrixXf Covariance = MatrixXf::Zero(m,m);
+	Covariance = (1.0/(float)n) * DataPoints * DataPoints.transpose();
+	
+	// compute eigenvalues of the covariance matrix
+	EigenSolver<MatrixXf> m_solve(Covariance);
+	VectorXf eigenvalues = VectorXf::Zero(m);
+	eigenvalues = m_solve.eigenvalues().real();
+	
+	// return the ratio of the two largest eigenvalues
+	return (eigenvalues(m-1)/eigenvalues(m-2));
+}
+
+
 //hack distanceToCylinder till more complex one works
 float distanceToCylinder(float cylR, float cylH, // cylinder size
 			 float cylX, float cylY, // center at bottom cylinder face
@@ -109,6 +161,7 @@ float distanceToCylinder(float cylR, float cylH, // cylinder size
 {
   return sqrt(pow((cylX-testX),2)+pow((cylY-testY),2));
 }
+
 // not normalized
 float likelihoodPerson(vector < ZPoint > &frame,
 					   float xPos, float yPos) {
