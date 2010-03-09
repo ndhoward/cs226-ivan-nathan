@@ -46,17 +46,25 @@ bool dispBlobs = true;
 // list of connected components
 vector< vector<ZPoint> > connectedComponents;
 vector< ZPoint > connectedComponentsMean;
-vector< Particle_filter *> potentialPerson;
+
+// person data structures
+vector< Person_filter * > potentialPerson;
 vector< Particle > potentialPersonMean;
-vector< Particle_filter *> trackedPerson;
+vector< int > potentialPersonExistenceTime;
+vector< Person_filter * > trackedPerson;
 vector< Particle > trackedPersonMean;
 
+//bike data structures
+vector< Bike_filter * > potentialBike;
+vector< Particle > potentialBikeMean;
+vector< int > potentialBikeExistenceTime;
+vector< Bike_filter * > trackedBike;
+vector< Particle > trackedBikeMean;
 
 // different visualization modes
 enum ViewMode {VIEW_NORMAL, VIEW_MOVE_MARKER};
 ViewMode mode = VIEW_NORMAL;
 
-//Particle_filter *filter;
 
 //find the mean (x,y) of a particle a filter
 void findParticleFilterMean(Particle &mean, Particle_filter *filter) {
@@ -87,6 +95,15 @@ void findConnectedComponentMean(ZPoint &mean, vector<ZPoint> &component) {
   mean.x = mean.x / numPoints;
   mean.y = mean.y / numPoints;
   mean.z = mean.z / numPoints;  
+}
+
+float computeParticleFilterMeanLikelihood(Particle_filter *filter) {
+  double sum = 0;
+  Particle *particles = filter->getParticles();
+  for (int i=0; i<NUM_PARTICLES; i++) {
+    sum += particles[i].likelihood;
+  }
+  return sum / NUM_PARTICLES;
 }
 
 float distSq(ZPoint &point, Particle &particle) {
@@ -200,42 +217,52 @@ void findConnectedComponents(vector< ZPoint > &frame)
   }
 }
 
-void identifyNewConnectedComponentsToClassify() {
+void identifyNewConnectedComponentsToClassifyPerson(vector< Particle > &potentialMean,
+						    vector< Particle > &trackedMean,
+						    vector<Person_filter*> &potential,
+						    vector<Person_filter*> &tracked,
+						    vector<int> &existenceTime,
+						    string debugName) {
   // for each connected componet find the nearest particle filter
   // if the nearest is too far away, create a new particle filter
   // centered on the connected component
-  potentialPersonMean.clear();
-  trackedPersonMean.clear();
-  for (int j=0; j<potentialPerson.size(); j++) {
+  potentialMean.clear();
+  trackedMean.clear();
+  for (int j=0; j<potential.size(); j++) {
     Particle mean;
-    findParticleFilterMean(mean, potentialPerson[j]);
-    potentialPersonMean.push_back(mean);
+    findParticleFilterMean(mean, potential[j]);
+    potentialMean.push_back(mean);
   }
-  for (int j=0; j<trackedPerson.size(); j++) {
+  for (int j=0; j<tracked.size(); j++) {
     Particle mean;
-    findParticleFilterMean(mean, trackedPerson[j]);
-    trackedPersonMean.push_back(mean);
+    findParticleFilterMean(mean, tracked[j]);
+    trackedMean.push_back(mean);
   }
   
   for (int i=0; i < connectedComponentsMean.size(); i++) {
     ZPoint blobMean = connectedComponentsMean[i];
     
+    cout << "blob " << i << " has mean: (" << blobMean.x
+	 << ", " << blobMean.y << ")" << endl;
+
     //find the nearest particle filter mean
     bool alreadyTracked = false;
-    for (int j=0; j<potentialPersonMean.size(); j++) {
-      Particle particle = potentialPersonMean[j];
+    for (int j=0; j<potentialMean.size(); j++) {
+      Particle particle = potentialMean[j];
       float d = distSq(blobMean, particle);
       if (d < 1.5) {
 	alreadyTracked = true;
+	break;
       }
     }
 
     if (!alreadyTracked) {
-      for (int j=0; j<trackedPersonMean.size(); j++) {
-	Particle particle = trackedPersonMean[j];
+      for (int j=0; j<trackedMean.size(); j++) {
+	Particle particle = trackedMean[j];
 	float d = distSq(blobMean, particle);
 	if (d < 1.5) {
 	  alreadyTracked = true;
+	  break;
 	}
       }
     }
@@ -243,14 +270,169 @@ void identifyNewConnectedComponentsToClassify() {
     // The connected component does not have a particle filter assigned to
     // it. Create a new particle filter and center it around the blob.
     if (!alreadyTracked) {
-      Particle_filter *filter = new Particle_filter(blobMean.x+0.6,
-						    blobMean.x-0.6,
-						    blobMean.y+0.6,
-						    blobMean.y-0.6);
-      potentialPerson.push_back(filter);
+      Person_filter *filter = new Person_filter(blobMean.x+0.6,
+				   blobMean.x-0.6,
+				   blobMean.y+0.6,
+				   blobMean.y-0.6);
+      potential.push_back(filter);
+      existenceTime.push_back(1);
+
+      cout << "created new " << debugName << " particle filter centered at: (" << blobMean.x
+	   << ", " << blobMean.y << ")" << endl;
     }
   }
 }
+
+void identifyNewConnectedComponentsToClassifyBike(vector< Particle > &potentialMean,
+						  vector< Particle > &trackedMean,
+						  vector<Bike_filter*> &potential,
+						  vector<Bike_filter*> &tracked,
+						  vector<int> &existenceTime,
+						  string debugName) {
+  // for each connected componet find the nearest particle filter
+  // if the nearest is too far away, create a new particle filter
+  // centered on the connected component
+  potentialMean.clear();
+  trackedMean.clear();
+  for (int j=0; j<potential.size(); j++) {
+    Particle mean;
+    findParticleFilterMean(mean, potential[j]);
+    potentialMean.push_back(mean);
+  }
+  for (int j=0; j<tracked.size(); j++) {
+    Particle mean;
+    findParticleFilterMean(mean, tracked[j]);
+    trackedMean.push_back(mean);
+  }
+  
+  for (int i=0; i < connectedComponentsMean.size(); i++) {
+    ZPoint blobMean = connectedComponentsMean[i];
+    
+    cout << "blob " << i << " has mean: (" << blobMean.x
+	 << ", " << blobMean.y << ")" << endl;
+
+    //find the nearest particle filter mean
+    bool alreadyTracked = false;
+    for (int j=0; j<potentialMean.size(); j++) {
+      Particle particle = potentialMean[j];
+      float d = distSq(blobMean, particle);
+      if (d < 1.5) {
+	alreadyTracked = true;
+	break;
+      }
+    }
+
+    if (!alreadyTracked) {
+      for (int j=0; j<trackedMean.size(); j++) {
+	Particle particle = trackedMean[j];
+	float d = distSq(blobMean, particle);
+	if (d < 1.5) {
+	  alreadyTracked = true;
+	  break;
+	}
+      }
+    }
+
+    // The connected component does not have a particle filter assigned to
+    // it. Create a new particle filter and center it around the blob.
+    if (!alreadyTracked) {
+      Bike_filter *filter = new Bike_filter(blobMean.x+0.6,
+					    blobMean.x-0.6,
+					    blobMean.y+0.6,
+					    blobMean.y-0.6);	
+      potential.push_back(filter);
+      existenceTime.push_back(1);
+
+      cout << "created new " << debugName << " particle filter centered at: (" << blobMean.x
+	   << ", " << blobMean.y << ")" << endl;
+    }
+  }
+}
+
+
+
+//remove particle filters whose average likelihood is too low
+void removeStalePersonParticleFilters(vector< Person_filter * > &potential,
+				vector< Person_filter * > &tracked,
+				vector<int> &existenceTime,
+				string debugName)
+{
+  for (int i=0; i<potential.size();) {
+    float likelihood = computeParticleFilterMeanLikelihood(potential[i]);    
+    cout << "mean likelihood for filter " << debugName << ": " << i
+	 << " is " << likelihood << endl;
+    if (existenceTime[i] > 3) {
+      //This particle is no longer tracking a person, remove it
+      if (likelihood < 50) {
+	delete potential[i];
+      } else {
+	// This particle is being graduated to the tracked person list
+	tracked.push_back(potential[i]);
+      }
+
+      potential.erase(potential.begin()+i);
+      existenceTime.erase(existenceTime.begin() + i);
+    } else {
+      i++;
+    }
+  }
+
+  for (int i=0; i<tracked.size();) {
+    float likelihood = computeParticleFilterMeanLikelihood(tracked[i]);
+    cout << "mean likelihood for " << debugName << " filter: " << i
+	 << " is " << likelihood << endl;    
+    if (likelihood < 20) {
+      //delete trackedPerson[i];
+      potential.push_back(tracked[i]);
+      existenceTime.push_back(3);
+      tracked.erase(tracked.begin()+i);
+    } else {
+      i++;
+    }
+  }
+}
+
+//remove particle filters whose average likelihood is too low
+void removeStaleBikeParticleFilters(vector< Bike_filter * > &potential,
+				vector< Bike_filter * > &tracked,
+				vector<int> &existenceTime,
+				string debugName)
+{
+  for (int i=0; i<potential.size();) {
+    float likelihood = computeParticleFilterMeanLikelihood(potential[i]);    
+    cout << "mean likelihood for filter " << debugName << ": " << i
+	 << " is " << likelihood << endl;
+    if (existenceTime[i] > 3) {
+      //This particle is no longer tracking a person, remove it
+      if (likelihood < 50) {
+	delete potential[i];
+      } else {
+	// This particle is being graduated to the tracked person list
+	tracked.push_back(potential[i]);
+      }
+
+      potential.erase(potential.begin()+i);
+      existenceTime.erase(existenceTime.begin() + i);
+    } else {
+      i++;
+    }
+  }
+
+  for (int i=0; i<tracked.size();) {
+    float likelihood = computeParticleFilterMeanLikelihood(tracked[i]);
+    cout << "mean likelihood for " << debugName << " filter: " << i
+	 << " is " << likelihood << endl;    
+    if (likelihood < 20) {
+      //delete trackedPerson[i];
+      potential.push_back(tracked[i]);
+      existenceTime.push_back(3);
+      tracked.erase(tracked.begin()+i);
+    } else {
+      i++;
+    }
+  }
+}
+
 
 void resize(int w, int h)
 {
@@ -336,97 +518,97 @@ void drawCoordinateAxes(void)
 
 void drawMarker(float x, float y, float z)
 {
-	glPointSize(5.0);
-	glColor4f(0.0, 1.0, 0.0, 0.5);
-	glBegin(GL_POINTS);
-	glVertex3f(x, y, z);
-	glEnd();
+  glPointSize(5.0);
+  glColor4f(0.0, 1.0, 0.0, 0.5);
+  glBegin(GL_POINTS);
+  glVertex3f(x, y, z);
+  glEnd();
 }
 
 void draw(void)
 {
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	// enable transparency
-	// from http://www.opengl.org/resources/faq/technical/transparency.htm
-	glEnable (GL_BLEND); 
-	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	
-	// calculate where we're looking
-	glLoadIdentity();
-	gluLookAt(ctrX + viewRho*sin(viewTheta)*cos(viewPhi), ctrY + viewRho*sin(viewTheta)*sin(viewPhi), ctrZ + viewRho*cos(viewTheta),
-			  ctrX, ctrY, ctrZ,
-			  upX, upY, upZ);
-	
-	drawCoordinateAxes();
-	drawMarker(markerX, markerY, markerZ);
-	
-	// The raw points from the frame
-	if (dispRawPoints) {
-	  glColor3f(1,1,1);
-	  glPointSize(1.0);
-	  glBegin(GL_POINTS);
-	  for(int i = 0; i < frames[curFrame].size(); i++) {
-	    glVertex3f(frames[curFrame][i].x,
-		       frames[curFrame][i].y,
-		       frames[curFrame][i].z);
-	  }
-	  glEnd();
-	}
-	
-	//The blobs found as connected components
-	if (dispBlobs) {
-	  int numComponents = connectedComponents.size();
-	  for (int i=0; i < numComponents; i++) {
-	    vector< ZPoint > component = connectedComponents[i];
-	    double colorVal = ((double) i)/numComponents;
-	    if (i % 3 == 0)
-	      glColor3f(colorVal, 0, 0);
-	    else if (i % 3 == 1)
-	      glColor3f(0, colorVal, 0);
-	    else if (i % 3 == 2)
-	      glColor3f(0, 0, colorVal);
-	    glPointSize(2.0);
-	    glBegin(GL_POINTS);
-	    for (int j=0; j < component.size(); j++) {
-	      glVertex3f(component[j].x,
-			 component[j].y,
-			 component[j].z);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  // enable transparency
+  // from http://www.opengl.org/resources/faq/technical/transparency.htm
+  glEnable (GL_BLEND); 
+  glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  
+  // calculate where we're looking
+  glLoadIdentity();
+  gluLookAt(ctrX + viewRho*sin(viewTheta)*cos(viewPhi), ctrY + viewRho*sin(viewTheta)*sin(viewPhi), ctrZ + viewRho*cos(viewTheta),
+	    ctrX, ctrY, ctrZ,
+	    upX, upY, upZ);
+  
+  drawCoordinateAxes();
+  drawMarker(markerX, markerY, markerZ);
+  
+  // The raw points from the frame
+  if (dispRawPoints) {
+    glColor3f(1,1,1);
+    glPointSize(1.0);
+    glBegin(GL_POINTS);
+    for(int i = 0; i < frames[curFrame].size(); i++) {
+      glVertex3f(frames[curFrame][i].x,
+		 frames[curFrame][i].y,
+		 frames[curFrame][i].z);
+    }
+    glEnd();
+  }
+  
+  //The blobs found as connected components
+  if (dispBlobs) {
+    int numComponents = connectedComponents.size();
+    for (int i=0; i < numComponents; i++) {
+      vector< ZPoint > component = connectedComponents[i];
+      double colorVal = ((double) i)/numComponents;
+      if (i % 3 == 0)
+	glColor3f(colorVal, 0, 0);
+      else if (i % 3 == 1)
+	glColor3f(0, colorVal, 0);
+      else if (i % 3 == 2)
+	glColor3f(0, 0, colorVal);
+      glPointSize(2.0);
+      glBegin(GL_POINTS);
+      for (int j=0; j < component.size(); j++) {
+	glVertex3f(component[j].x,
+		   component[j].y,
+		   component[j].z);
 	    }
-	    glEnd();
-	  }
-	}
+      glEnd();
+    }
+  }
 
-	//particle filter points
-	if (dispParticlesPotential) {
-	  glColor3f(1,0,0);
-	  glPointSize(3);
-	  glBegin(GL_POINTS);
-	  for (int n=0; n<potentialPerson.size(); n++) {
-	    Particle *particles = potentialPerson[n]->getParticles();
-	    for (int i=0; i<NUM_PARTICLES; i++) {
-	      Particle p = particles[i];
-	      glVertex3f(p.x, p.y, minZ);
-	    }
-	  }
-	  glEnd();
-	}
-
-	if (dispParticlesTracked) {
-	  glColor3f(0,1,0);
-	  glPointSize(3);
-	  glBegin(GL_POINTS);
-	  for (int n=0; n<trackedPerson.size(); n++) {
-	    Particle *particles = trackedPerson[n]->getParticles();
-	    for (int i=0; i<NUM_PARTICLES; i++) {
-	      Particle p = particles[i];
-	      glVertex3f(p.x, p.y, minZ);
-	    }
-	  }
-	  glEnd();
-	}
-	glFlush();
-	glutPostRedisplay();
-	glutSwapBuffers();	
+  //particle filter points
+  if (dispParticlesPotential) {
+    glColor3f(1,0,0);
+    glPointSize(3);
+    glBegin(GL_POINTS);
+    for (int n=0; n<potentialPerson.size(); n++) {
+      Particle *particles = potentialPerson[n]->getParticles();
+      for (int i=0; i<NUM_PARTICLES; i++) {
+	Particle p = particles[i];
+	glVertex3f(p.x, p.y, minZ);
+      }
+    }
+    glEnd();
+  }
+  
+  if (dispParticlesTracked) {
+    glColor3f(0,1,0);
+    glPointSize(3);
+    glBegin(GL_POINTS);
+    for (int n=0; n<trackedPerson.size(); n++) {
+      Particle *particles = trackedPerson[n]->getParticles();
+      for (int i=0; i<NUM_PARTICLES; i++) {
+	Particle p = particles[i];
+	glVertex3f(p.x, p.y, minZ);
+      }
+    }
+    glEnd();
+  }
+  glFlush();
+  glutPostRedisplay();
+  glutSwapBuffers();	
 }
 
 void nextFrame()
@@ -437,21 +619,51 @@ void nextFrame()
 
 void specialKey(int k, int x, int y)
 {
-	switch (k)
-	{
-		case GLUT_KEY_UP: // up arrow
-			viewRho -= 0.05*viewRho;
-			break;
-		case GLUT_KEY_DOWN: // down arrow
-			viewRho += 0.05*viewRho;
-			break;
-		case GLUT_KEY_RIGHT: // right arrow
-			viewPhi += 3.0*PI/180.0;
-			break;
-		case GLUT_KEY_LEFT: // left arrow
-			viewPhi -= 3.0*PI/180.0;
-			break;
-	}
+  switch (k)
+    {
+    case GLUT_KEY_UP: // up arrow
+      viewRho -= 0.05*viewRho;
+      break;
+    case GLUT_KEY_DOWN: // down arrow
+      viewRho += 0.05*viewRho;
+      break;
+    case GLUT_KEY_RIGHT: // right arrow
+      viewPhi += 3.0*PI/180.0;
+      break;
+    case GLUT_KEY_LEFT: // left arrow
+      viewPhi -= 3.0*PI/180.0;
+      break;
+    }
+}
+
+void updatePersonParticleFilters(vector<Person_filter*> &potential,
+				 vector<Person_filter*> &tracked,
+				 vector<int> &existenceTime)
+{
+  for (int i=0; i<tracked.size(); i++) {
+	tracked[i]->updateMeasurments(&frames[curFrame]);
+	tracked[i]->update();
+      }
+  for (int i=0; i<potential.size(); i++) {
+    potential[i]->updateMeasurments(&frames[curFrame]);
+    potential[i]->update();
+    existenceTime[i] += 1;
+  }
+}
+
+void updateBikeParticleFilters(vector<Bike_filter*> &potential,
+			       vector<Bike_filter*> &tracked,
+			       vector<int> &existenceTime)
+{
+  for (int i=0; i<tracked.size(); i++) {
+	tracked[i]->updateMeasurments(&frames[curFrame]);
+	tracked[i]->update();
+      }
+  for (int i=0; i<potential.size(); i++) {
+    potential[i]->updateMeasurments(&frames[curFrame]);
+    potential[i]->update();
+    existenceTime[i] += 1;
+  }
 }
 
 void key(unsigned char k, int x, int y)
@@ -504,25 +716,36 @@ void key(unsigned char k, int x, int y)
     case '1':
       if (curFrame < frames.size() - 1) curFrame++;			
       printf("Current frame: %d\n", frames[curFrame][0].t);
-      //for (int i=0; i<NUM_PARTICLES; i++) {
-      //  Particle p = parts[i];
-      //  cout << "particle filter: " << p.x << ", " << p.y << ", " << minZ << endl;
-      //}
       findConnectedComponents(frames[curFrame]);
       cout << "there are " << connectedComponents.size() << " blobs" << endl; 
-      for (int i=0; i<trackedPerson.size(); i++) {
-	trackedPerson[i]->updateMeasurments(&frames[curFrame]);
-	trackedPerson[i]->update();
-      }
-      for (int i=0; i<potentialPerson.size(); i++) {
-	potentialPerson[i]->updateMeasurments(&frames[curFrame]);
-	potentialPerson[i]->update();
-      }
-      //TODO: remove particle filters whose mean likelihood is too low
-      identifyNewConnectedComponentsToClassify();
-
-      //filter->updateMeasurments(&frames[curFrame]);
-      //filter->update();
+      cout << "there are " << trackedPerson.size() << " tracked persons" << endl;
+      cout << "there are " << potentialPerson.size() << " potential persons" << endl;
+      updatePersonParticleFilters(potentialPerson,
+			    trackedPerson,
+			    potentialPersonExistenceTime);
+      updateBikeParticleFilters(potentialBike,
+			    trackedBike,
+			    potentialBikeExistenceTime);      
+      removeStalePersonParticleFilters(potentialPerson,
+				       trackedPerson,
+				       potentialPersonExistenceTime,
+				       "person");
+      removeStaleBikeParticleFilters(potentialBike,
+				     trackedBike,
+				     potentialBikeExistenceTime,
+				     "bike");
+      identifyNewConnectedComponentsToClassifyPerson(potentialPersonMean,
+						     trackedPersonMean,
+						     potentialPerson,
+						     trackedPerson,
+						     potentialPersonExistenceTime,
+						     "person");
+      identifyNewConnectedComponentsToClassifyBike(potentialBikeMean,
+						   trackedBikeMean,
+						   potentialBike,
+						   trackedBike,
+						   potentialBikeExistenceTime,
+						   "bike");
       break;
     case '!':
       if(curFrame > 0) curFrame--;

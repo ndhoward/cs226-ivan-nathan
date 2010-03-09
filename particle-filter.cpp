@@ -12,8 +12,6 @@
 
 using namespace std;
 
-float motionModelStepSize = 1.0/7.0;
-
 Particle_filter::Particle_filter(float max_x, float min_x, float max_y, float min_y) {
   particles = new Particle[NUM_PARTICLES];
   oldParticles = new Particle[NUM_PARTICLES];
@@ -56,11 +54,16 @@ void Particle_filter::bound_particle(Particle &p) {
   }
 }
 
+// function modified to make sure inheritance works correctly
+// this should never be called
 void Particle_filter::update_Xt(Particle &p) {
-  p.x = p.x + cos(p.theta)*motionModelStepSize;
-  p.y = p.y + sin(p.theta)*motionModelStepSize;
-  bound_particle(p);
+  //p.x = p.x + cos(p.theta)*motionModelStepSize;
+  //p.y = p.y + sin(p.theta)*motionModelStepSize;
+  //bound_particle(p);
+  p.x = 0;
+  p.y = 0;
 }
+
 
 float Particle_filter::setup_importance_sample() {
   float sum = 0;
@@ -75,8 +78,12 @@ void Particle_filter::updateMeasurments(vector<ZPoint> *curFrame) {
   measurments = curFrame;
 }
 
+//this function should never be called
 float Particle_filter::likelihood(Particle &p) {
-  return likelihoodPerson(*measurments, p.x, p.y);
+  //float likelihood = likelihoodPerson(*measurments, p.x, p.y);
+  //p.likelihood = likelihood;
+  p.likelihood = -666;
+  return -666;
 }
 
 
@@ -108,12 +115,12 @@ void  Particle_filter::update() {
   }
 
   //randomly resample 1/3 of the particles
-  random_resample(0.1);
+  //random_resample(0.1);
 }
 
 // For now this is a uniform probabilty centered at the particle
 void Particle_filter::jiggle_particle(Particle &p) {
-  const float POSJIGGLE=0.01; // in meters
+  const float POSJIGGLE=0.04; // in meters
   const float THETAJIGGLE=90.0; // in degrees
   p.x += POSJIGGLE*(float)rand()/RAND_MAX;
   p.y += POSJIGGLE*(float)rand()/RAND_MAX;
@@ -161,4 +168,53 @@ int Particle_filter::binarySearch(float sortedArray[], int first, int last, floa
      cout<< "sortedArray["<<i<<"]: "<<sortedArray[i]<<endl;
    }
    return -(first + 1);    // failed to find key
+}
+
+
+// Person functions
+Person_filter::Person_filter(float max_x, float min_x, float max_y, float min_y) : Particle_filter(max_x, min_x, max_y, min_y) { }
+
+float Person_filter::likelihood(Particle &p) {
+  float likelihood = likelihoodPerson(*measurments, p.x, p.y);
+  p.likelihood = likelihood;
+  return likelihood;
+}
+
+
+void Person_filter::update_Xt(Particle &p) {
+  p.x = p.x + cos(p.theta)*0.17;
+  p.y = p.y + sin(p.theta)*0.17;
+  bound_particle(p);
+}
+
+void Person_filter::jiggle_particle(Particle &p) {
+  const float POSJIGGLE=0.04; // in meters
+  const float THETAJIGGLE=30.0; // in degrees
+  p.x += POSJIGGLE*(float)rand()/RAND_MAX;
+  p.y += POSJIGGLE*(float)rand()/RAND_MAX;
+  p.theta = fmodf(p.theta - THETAJIGGLE/2.0*PI/180.0 + THETAJIGGLE*PI/180.0*((float)rand())/RAND_MAX, 2*PI);
+}
+
+// Bike functions
+Bike_filter::Bike_filter(float max_x, float min_x, float max_y, float min_y) : Particle_filter(max_x, min_x, max_y, min_y) { }
+
+float Bike_filter::likelihood(Particle &p) {
+  float likelihood = likelihoodPerson(*measurments, p.x, p.y);
+  p.likelihood = likelihood;
+  return likelihood;
+}
+
+void Bike_filter::update_Xt(Particle &p) {
+  p.x = p.x + cos(p.theta)*0.32;
+  p.y = p.y + sin(p.theta)*0.32;
+  bound_particle(p);
+}
+
+
+void Bike_filter::jiggle_particle(Particle &p) {
+  const float POSJIGGLE=0.15; // in meters
+  const float THETAJIGGLE=30.0; // in degrees
+  p.x += POSJIGGLE*(float)rand()/RAND_MAX;
+  p.y += POSJIGGLE*(float)rand()/RAND_MAX;
+  p.theta = fmodf(p.theta - THETAJIGGLE/2.0*PI/180.0 + THETAJIGGLE*PI/180.0*((float)rand())/RAND_MAX, 2*PI);
 }
