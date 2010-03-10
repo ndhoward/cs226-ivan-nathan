@@ -23,33 +23,41 @@ float pVal(vector < ZPoint > &blob)
 	// import most common Eigen types 
 	USING_PART_OF_NAMESPACE_EIGEN
 	
-	unsigned int const m = blob.size();	// number of points
-	unsigned int n = 3;					// dimension of each point
+	unsigned int n = blob.size();	// number of points
+	unsigned int m = 3;				// dimension of each point
 	
 	MatrixXf DataPoints = MatrixXf::Zero(m,n);	// matrix (m x n)
 	
-	for(int r = 0; r < n; r++)
+	for(int i = 0; i < n; i++)
 	{
-		DataPoints(r,0) = blob[r].x;
-		DataPoints(r,1) = blob[r].y;
-		DataPoints(r,2) = blob[r].z;
+		DataPoints(0,i) = blob[i].x;
+		DataPoints(1,i) = blob[i].y;
+		DataPoints(2,i) = blob[i].z;
 	}
 	
-	double mean;
-	VectorXf meanVector;
-	
+	//double mean;
+	//VectorXf meanVector;
 	// for each point, 
 	// center the point with the mean along all the coordinates
-	for(int i = 0; i < DataPoints.cols(); i++)
+	//for(int i = 0; i < DataPoints.cols(); i++)
+	//{
+	//	mean = (DataPoints.col(i).sum())/m;			// compute mean
+	//	meanVector = VectorXf::Constant(m, mean);	// create vector with constant value = mean
+	//	DataPoints.col(i) -= meanVector;			// subtract away the mean
+	//}
+	
+	double mean;
+	RowVectorXf meanVector;
+	for(int i = 0; i < DataPoints.rows(); i++)
 	{
-		mean = (DataPoints.col(i).sum())/m;			// compute mean
-		meanVector = VectorXf::Constant(m, mean);	// create vector with constant value = mean
-		DataPoints.col(i) -= meanVector;			// subtract away the mean
+		mean = (DataPoints.row(i).sum())/n;
+		meanVector = RowVectorXf::Constant(n,mean);
+		DataPoints.row(i) -= meanVector;
 	}
 	
 	// get the covariance matrix
 	MatrixXf Covariance = MatrixXf::Zero(m,m);
-	Covariance = (1.0/(float)n) * DataPoints * DataPoints.transpose();
+	Covariance = (1.0/(float)(n*n)) * DataPoints * DataPoints.transpose();
 	
 	// compute eigenvalues of the covariance matrix
 	EigenSolver<MatrixXf> m_solve(Covariance);
