@@ -1,5 +1,5 @@
 #include <cmath>
-#include <algorithm>	// min
+#include <algorithm>	// min, max
 #include <iostream>
 #include "geomModel.h"
 
@@ -20,11 +20,15 @@ using namespace std;
 float pVal(vector < ZPoint > &blob)
 {
 	using namespace Eigen;
-	unsigned int const m = 3;			// dimension of each point
-	unsigned int n = blob.size();		// number of points
+	// import most common Eigen types 
+	USING_PART_OF_NAMESPACE_EIGEN
+	
+	unsigned int const m = blob.size();	// number of points
+	unsigned int n = 3;					// dimension of each point
 	
 	MatrixXf DataPoints = MatrixXf::Zero(m,n);	// matrix (m x n)
-	for(int r = 0; r < blob.size(); r++)
+	
+	for(int r = 0; r < n; r++)
 	{
 		DataPoints(r,0) = blob[r].x;
 		DataPoints(r,1) = blob[r].y;
@@ -52,8 +56,18 @@ float pVal(vector < ZPoint > &blob)
 	VectorXf eigenvalues = VectorXf::Zero(m);
 	eigenvalues = m_solve.eigenvalues().real();
 	
+	// largest and second largest eigenvalues
+	// http://stackoverflow.com/questions/1582356/fastest-way-of-finding-the-middle-value-of-a-triple/1582406#1582406
+	float a = eigenvalues(0);
+	float b = eigenvalues(1);
+	float c = eigenvalues(2);
+	float midev = (a <= b) 
+    				? ((b <= c) ? b : ((a < c) ? c : a)) 
+    				: ((a <= c) ? a : ((b < c) ? c : b));
+	float maxev = max(max(a,b),c);
+	
 	// return the ratio of the two largest eigenvalues
-	return (eigenvalues(m-1)/eigenvalues(m-2));
+	return (maxev/midev);
 }
 
 
@@ -68,7 +82,7 @@ float distanceToCylinder(float cylR, float cylH, // cylinder size
 // not normalized
 float likelihoodPerson(vector < ZPoint > &blob,
 					   float xPos, float yPos) {
-	
+	/*
 	// tunable model parameters
 	const float EPSILON = 1.0/3.0;	
 	const float PERSON_RADIUS = 1.0/3.0;
@@ -85,6 +99,8 @@ float likelihoodPerson(vector < ZPoint > &blob,
 			countWithinEps++;
 	}
 	return (float)countWithinEps;
+	*/
+	return pVal(blob);
 }
 
 /*
