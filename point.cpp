@@ -133,7 +133,7 @@ void findConnectedComponents(vector< ZPoint > &frame)
   dataPts  = annAllocPts(nPts, 3); // allocate data points
   // allocate near neigh indices  
   nnIdx =  new ANNidx[numberOfNearestNeighbors];
-  // allocate near neighbor dists 
+  // allocate near neighbor dists
   dists =  new ANNdist[numberOfNearestNeighbors];
 
   for (int i=0; i<frame.size(); i++) {
@@ -217,6 +217,20 @@ void findConnectedComponents(vector< ZPoint > &frame)
   }
 }
 
+vector< ZPoint > *findClosestConnectedCompoenent(Particle &p) {
+  int idx = -1;
+  float minDist = 1000;
+  for (int i=0; i<connectedComponentsMean.size(); i++) {
+    ZPoint mean = connectedComponentsMean[i];
+    float dist = distSq(mean, p);
+    if (dist < maxDist) {
+      minDist = dist;
+      idx = i;
+    }
+  }
+  return &connectedComponent[i];
+}
+
 void identifyNewConnectedComponentsToClassifyPerson(vector< Particle > &potentialMean,
 						    vector< Particle > &trackedMean,
 						    vector<Person_filter*> &potential,
@@ -250,7 +264,7 @@ void identifyNewConnectedComponentsToClassifyPerson(vector< Particle > &potentia
     for (int j=0; j<potentialMean.size(); j++) {
       Particle particle = potentialMean[j];
       float d = distSq(blobMean, particle);
-      if (d < 1.5) {
+      if (d < 1) {
 	alreadyTracked = true;
 	break;
       }
@@ -260,7 +274,7 @@ void identifyNewConnectedComponentsToClassifyPerson(vector< Particle > &potentia
       for (int j=0; j<trackedMean.size(); j++) {
 	Particle particle = trackedMean[j];
 	float d = distSq(blobMean, particle);
-	if (d < 1.5) {
+	if (d < 1) {
 	  alreadyTracked = true;
 	  break;
 	}
@@ -271,9 +285,9 @@ void identifyNewConnectedComponentsToClassifyPerson(vector< Particle > &potentia
     // it. Create a new particle filter and center it around the blob.
     if (!alreadyTracked) {
       Person_filter *filter = new Person_filter(blobMean.x+0.6,
-				   blobMean.x-0.6,
-				   blobMean.y+0.6,
-				   blobMean.y-0.6);
+						blobMean.x-0.6,
+						blobMean.y+0.6,
+						blobMean.y-0.6);
       potential.push_back(filter);
       existenceTime.push_back(1);
 
@@ -316,7 +330,7 @@ void identifyNewConnectedComponentsToClassifyBike(vector< Particle > &potentialM
     for (int j=0; j<potentialMean.size(); j++) {
       Particle particle = potentialMean[j];
       float d = distSq(blobMean, particle);
-      if (d < 1.5) {
+      if (d < 1) {
 	alreadyTracked = true;
 	break;
       }
@@ -326,7 +340,7 @@ void identifyNewConnectedComponentsToClassifyBike(vector< Particle > &potentialM
       for (int j=0; j<trackedMean.size(); j++) {
 	Particle particle = trackedMean[j];
 	float d = distSq(blobMean, particle);
-	if (d < 1.5) {
+	if (d < 1) {
 	  alreadyTracked = true;
 	  break;
 	}
