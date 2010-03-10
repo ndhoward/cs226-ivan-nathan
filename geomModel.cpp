@@ -95,7 +95,8 @@ float likelihoodPerson(vector <ZPoint> &blob,
 	
 	// P-value likelihood
 	float pV = pVal(blob);
-	float pVlike = 1.0/abs((pV - MEANP)/SIGP + SIGP/10000.0); // regularize to make sure not dividing by zero
+	//float pVlike = 1.0/abs((pV - MEANP)/SIGP + SIGP/10000.0); // regularize to make sure not dividing by zero
+	float pVlike = 20.0/sqrt(2*PI*SIGP*SIGP)*exp(-pow(pV-MEANP,2)/(2*SIGP*SIGP));
 	
 	// density likelihood
 	// tunable model parameters
@@ -126,7 +127,8 @@ float likelihoodBike(vector <ZPoint> &blob,
 	
 	// P-value likelihood
 	float pV = pVal(blob);
-	float pVlike = 1.0/abs((pV - MEANP)/SIGP + SIGP/10000.0); // regularize to make sure not dividing by zero
+	//float pVlike = 1.0/abs((pV - MEANP)/SIGP + SIGP/10000.0); // regularize to make sure not dividing by zero
+	float pVlike = 1.0/sqrt(2*PI*SIGP*SIGP)*exp(-pow(pV-MEANP,2)/(2*SIGP*SIGP));
 	
 	// density likelihood
 	// tunable model parameters

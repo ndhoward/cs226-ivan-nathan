@@ -360,7 +360,7 @@ void removeStalePersonParticleFilters(vector< Person_filter * > &potential,
 				string debugName)
 {
   float const TRACK_LIKELIHOOD_PROMOTE_THRESH = 1.0;
-  float const TRACK_LIKELIHOOD_DEMOTE_THRESH = 0.5;
+  float const TRACK_LIKELIHOOD_DEMOTE_THRESH = 0.7;
   
   for (int i=0; i<potential.size();) {
     float likelihood = computeParticleFilterMeanLikelihood(potential[i]);    
@@ -404,7 +404,7 @@ void removeStaleBikeParticleFilters(vector< Bike_filter * > &potential,
 				string debugName)
 {
   float const TRACK_LIKELIHOOD_PROMOTE_THRESH = 1.0;
-  float const TRACK_LIKELIHOOD_DEMOTE_THRESH = 0.5;
+  float const TRACK_LIKELIHOOD_DEMOTE_THRESH = 0.3;
   
   for (int i=0; i<potential.size();) {
     float likelihood = computeParticleFilterMeanLikelihood(potential[i]);    
@@ -451,6 +451,76 @@ void resize(int w, int h)
 	gluPerspective(45.0f, 1.0f * w / h, 0.1f, 100000.0f);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
+}
+
+// stolen from http://eecs.oregonstate.edu/capstone/opengl/sample.cpp
+void HsvRgb( float h, float s, float v, float &r, float &g, float &b)
+{
+	float i, f, p, q, t;		// interim values
+
+
+	// guarantee valid input:
+
+	h = h / 60.;
+	while( h >= 6. )	h -= 6.;
+	while( h <  0. ) 	h += 6.;
+
+	s = s;
+	if( s < 0. )
+		s = 0.;
+	if( s > 1. )
+		s = 1.;
+
+	v = v;
+	if( v < 0. )
+		v = 0.;
+	if( v > 1. )
+		v = 1.;
+
+
+	// if sat==0, then is a gray:
+
+	if( s == 0.0 )
+	{
+		r = g = b = v;
+		return;
+	}
+
+
+	// get an rgb from the hue itself:
+	
+	i = floor( h );
+	f = h - i;
+	p = v * ( 1. - s );
+	q = v * ( 1. - s*f );
+	t = v * ( 1. - ( s * (1.-f) ) );
+
+	switch( (int) i )
+	{
+		case 0:
+			r = v;	g = t;	b = p;
+			break;
+	
+		case 1:
+			r = q;	g = v;	b = p;
+			break;
+	
+		case 2:
+			r = p;	g = v;	b = t;
+			break;
+	
+		case 3:
+			r = p;	g = q;	b = v;
+			break;
+	
+		case 4:
+			r = t;	g = p;	b = v;
+			break;
+	
+		case 5:
+			r = v;	g = p;	b = q;
+			break;
+	}
 }
 
 // draws a string in 3d space
@@ -533,6 +603,8 @@ void drawMarker(float x, float y, float z)
   glEnd();
 }
 
+
+
 void draw(void)
 {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -569,26 +641,30 @@ void draw(void)
     for (int i=0; i < numComponents; i++) {
       vector< ZPoint > component = connectedComponents[i];
       double colorVal = ((double) i)/numComponents;
+      /*
       if (i % 3 == 0)
-	glColor3f(colorVal, 0, 0);
+		glColor3f(colorVal, 0, 0);
       else if (i % 3 == 1)
-	glColor3f(0, colorVal, 0);
+		glColor3f(0, colorVal, 0);
       else if (i % 3 == 2)
-	glColor3f(0, 0, colorVal);
+		glColor3f(0, 0, colorVal);
+	  */
+	  glColor3f(0.6, 0.6, 0.6);
+	  
       glPointSize(2.0);
       glBegin(GL_POINTS);
       for (int j=0; j < component.size(); j++) {
-	glVertex3f(component[j].x,
+		   glVertex3f(component[j].x,
 		   component[j].y,
 		   component[j].z);
-	    }
+	  }
       glEnd();
     }
   }
 
   //particle filter points
   if (dispParticlesPotential) {
-    glColor3f(1,0,0);
+    glColor4f(0,1,0,0.1);
     glPointSize(3);
     glBegin(GL_POINTS);
     for (int n=0; n<potentialPerson.size(); n++) {
@@ -599,14 +675,38 @@ void draw(void)
       }
     }
     glEnd();
+    
+    glColor4f(0,0,1,0.1);
+    glPointSize(3);
+    glBegin(GL_POINTS);
+    for (int n=0; n<potentialBike.size(); n++) {
+      Particle *particles = potentialBike[n]->getParticles();
+      for (int i=0; i<NUM_PARTICLES; i++) {
+	Particle p = particles[i];
+	glVertex3f(p.x, p.y, minZ);
+      }
+    }
+    glEnd();
   }
   
   if (dispParticlesTracked) {
-    glColor3f(0,1,0);
+    glColor4f(0,1,0,1.0);
     glPointSize(3);
     glBegin(GL_POINTS);
     for (int n=0; n<trackedPerson.size(); n++) {
       Particle *particles = trackedPerson[n]->getParticles();
+      for (int i=0; i<NUM_PARTICLES; i++) {
+	Particle p = particles[i];
+	glVertex3f(p.x, p.y, minZ);
+      }
+    }
+    glEnd();
+
+    glColor4f(0,0,1, 1.0);
+    glPointSize(3);
+    glBegin(GL_POINTS);
+    for (int n=0; n<trackedBike.size(); n++) {
+      Particle *particles = trackedBike[n]->getParticles();
       for (int i=0; i<NUM_PARTICLES; i++) {
 	Particle p = particles[i];
 	glVertex3f(p.x, p.y, minZ);
