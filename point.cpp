@@ -223,12 +223,12 @@ vector< ZPoint > *findClosestConnectedCompoenent(Particle &p) {
   for (int i=0; i<connectedComponentsMean.size(); i++) {
     ZPoint mean = connectedComponentsMean[i];
     float dist = distSq(mean, p);
-    if (dist < maxDist) {
+    if (dist < minDist) {
       minDist = dist;
       idx = i;
     }
   }
-  return &connectedComponent[i];
+  return &connectedComponents[idx];
 }
 
 void identifyNewConnectedComponentsToClassifyPerson(vector< Particle > &potentialMean,
