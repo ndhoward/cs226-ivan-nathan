@@ -208,7 +208,7 @@ float Person_filter::likelihood(Particle &p) {
 void Person_filter::update_Xt(Particle &p) {
   p.x = p.x + cos(p.theta)*0.17;
   p.y = p.y + sin(p.theta)*0.17;
-  bound_particle(p);
+  //bound_particle(p);
 }
 
 void Person_filter::jiggle_particle(Particle &p) {
@@ -225,7 +225,7 @@ Bike_filter::Bike_filter(float max_x, float min_x, float max_y, float min_y) : P
 float Bike_filter::likelihood(Particle &p) {
   //find the nearest blob
   vector<ZPoint> *blob = findClosestConnectedCompoenent(p);
-  float likelihood = likelihoodPerson(*blob, p.x, p.y);
+  float likelihood = likelihoodBike(*blob, p.x, p.y);
   p.likelihood = likelihood;
   return likelihood;
 }
@@ -233,7 +233,7 @@ float Bike_filter::likelihood(Particle &p) {
 void Bike_filter::update_Xt(Particle &p) {
   p.x = p.x + cos(p.theta)*0.32;
   p.y = p.y + sin(p.theta)*0.32;
-  bound_particle(p);
+  //bound_particle(p);
 }
 
 

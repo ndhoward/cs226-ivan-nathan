@@ -57,7 +57,7 @@ float pVal(vector < ZPoint > &blob)
 	
 	// get the covariance matrix
 	MatrixXf Covariance = MatrixXf::Zero(m,m);
-	Covariance = (1.0/(float)(n*n)) * DataPoints * DataPoints.transpose();
+	Covariance = (1.0/(float)n) * DataPoints * DataPoints.transpose();
 	
 	// compute eigenvalues of the covariance matrix
 	EigenSolver<MatrixXf> m_solve(Covariance);
@@ -87,10 +87,72 @@ float distanceToCylinder(float cylR, float cylH, // cylinder size
   return sqrt(pow((cylX-testX),2)+pow((cylY-testY),2));
 }
 
+float likelihoodPerson(vector <ZPoint> &blob,
+					   float xPos, float yPos) {
+	// p-value mean and std deviation
+	const float MEANP = 7.04;
+	const float SIGP  = 2.80;	
+	
+	// P-value likelihood
+	float pV = pVal(blob);
+	float pVlike = 1.0/abs((pV - MEANP)/SIGP + SIGP/10000.0); // regularize to make sure not dividing by zero
+	
+	// density likelihood
+	// tunable model parameters
+	const float EPSILON = 1.0/3.0;	
+	const float PERSON_RADIUS = 1.0/3.0;
+	const float PERSON_HEIGHT = 1.5;
+	
+	int countWithinEps = 0;
+	for(int i = 0; i < blob.size(); i++)
+	{
+		float dist = distanceToCylinder(PERSON_RADIUS, PERSON_HEIGHT,
+						xPos, yPos,	// person center
+						blob[i].x, blob[i].y, blob[i].z);
+		
+		if(dist <= EPSILON)
+			countWithinEps++;
+	}
+	float distLike = (float)countWithinEps/100.0;
+	
+	return pVlike*distLike;
+}
+
+float likelihoodBike(vector <ZPoint> &blob,
+					 float xPos, float yPos) {
+	// p-value mean and std deviation
+	const float MEANP = 2.01;
+	const float SIGP  = 0.33;
+	
+	// P-value likelihood
+	float pV = pVal(blob);
+	float pVlike = 1.0/abs((pV - MEANP)/SIGP + SIGP/10000.0); // regularize to make sure not dividing by zero
+	
+	// density likelihood
+	// tunable model parameters
+	const float EPSILON = 1.0/3.0;	
+	const float PERSON_RADIUS = 1.0/1.0;
+	const float PERSON_HEIGHT = 2.0;
+	
+	int countWithinEps = 0;
+	for(int i = 0; i < blob.size(); i++)
+	{
+		float dist = distanceToCylinder(PERSON_RADIUS, PERSON_HEIGHT,
+						xPos, yPos,	// person center
+						blob[i].x, blob[i].y, blob[i].z);
+		
+		if(dist <= EPSILON)
+			countWithinEps++;
+	}
+	float distLike = (float)countWithinEps/100.0;
+	
+	return pVlike*distLike;
+}
+
+/*
 // not normalized
 float likelihoodPerson(vector < ZPoint > &blob,
 					   float xPos, float yPos) {
-	/*
 	// tunable model parameters
 	const float EPSILON = 1.0/3.0;	
 	const float PERSON_RADIUS = 1.0/3.0;
@@ -107,11 +169,8 @@ float likelihoodPerson(vector < ZPoint > &blob,
 			countWithinEps++;
 	}
 	return (float)countWithinEps;
-	*/
-	return pVal(blob);
 }
 
-/*
 int main(int argc, char *argv[])
 {
 	// test for person samples

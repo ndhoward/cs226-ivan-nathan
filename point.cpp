@@ -359,13 +359,16 @@ void removeStalePersonParticleFilters(vector< Person_filter * > &potential,
 				vector<int> &existenceTime,
 				string debugName)
 {
+  float const TRACK_LIKELIHOOD_PROMOTE_THRESH = 1.0;
+  float const TRACK_LIKELIHOOD_DEMOTE_THRESH = 0.5;
+  
   for (int i=0; i<potential.size();) {
     float likelihood = computeParticleFilterMeanLikelihood(potential[i]);    
     cout << "mean likelihood for filter " << debugName << ": " << i
 	 << " is " << likelihood << endl;
     if (existenceTime[i] > 3) {
       //This particle is no longer tracking a person, remove it
-      if (likelihood < 50) {
+      if (likelihood < TRACK_LIKELIHOOD_PROMOTE_THRESH) {
 	delete potential[i];
       } else {
 	// This particle is being graduated to the tracked person list
@@ -383,7 +386,7 @@ void removeStalePersonParticleFilters(vector< Person_filter * > &potential,
     float likelihood = computeParticleFilterMeanLikelihood(tracked[i]);
     cout << "mean likelihood for filter " << debugName << ": " << i
 	 << " is " << likelihood << endl;    
-    if (likelihood < 20) {
+    if (likelihood < TRACK_LIKELIHOOD_DEMOTE_THRESH) {
       //delete trackedPerson[i];
       potential.push_back(tracked[i]);
       existenceTime.push_back(3);
