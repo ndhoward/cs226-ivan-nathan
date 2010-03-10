@@ -74,14 +74,37 @@ float Particle_filter::setup_importance_sample() {
   return sum;
 }
 
-void Particle_filter::updateMeasurments(vector<ZPoint> *curFrame) {
-  measurments = curFrame;
+void Particle_filter::updateMeasurments(vector< vector< ZPoint > > *blobs) {
+  connectedComponents = blobs;
+}
+
+void Particle_filter::setConnectedComponentMeans(vector< ZPoint > *blobMeans) {
+  connectedComponentsMean = blobMeans;
+}
+
+
+float distance(ZPoint &point, Particle &particle) {
+  float xval = point.x - particle.x;
+  float yval = point.y - particle.y;
+  return xval*xval+yval*yval;
+}
+
+vector< ZPoint > *Particle_filter::findClosestConnectedCompoenent(Particle &p) {
+  int idx = -1;
+  float minDist = 1000;
+  for (int i=0; i<connectedComponentsMean->size(); i++) {
+    ZPoint mean = connectedComponentsMean->at(i);
+    float dist = distance(mean, p);
+    if (dist < minDist) {
+      minDist = dist;
+      idx = i;
+    }
+  }
+  return &connectedComponents->at(idx);
 }
 
 //this function should never be called
 float Particle_filter::likelihood(Particle &p) {
-  //float likelihood = likelihoodPerson(*measurments, p.x, p.y);
-  //p.likelihood = likelihood;
   p.likelihood = -666;
   return -666;
 }
@@ -93,7 +116,7 @@ void  Particle_filter::update() {
   Particle *temp = particles;
   particles = oldParticles;
   oldParticles = temp;
-
+ 
   for (int i=0; i<NUM_PARTICLES; i++) {
     // sample x_t^m ~ p(x_t | u_t, x_{t-1}^m)
     update_Xt(oldParticles[i]);
@@ -175,7 +198,8 @@ int Particle_filter::binarySearch(float sortedArray[], int first, int last, floa
 Person_filter::Person_filter(float max_x, float min_x, float max_y, float min_y) : Particle_filter(max_x, min_x, max_y, min_y) { }
 
 float Person_filter::likelihood(Particle &p) {
-  float likelihood = likelihoodPerson(*measurments, p.x, p.y);
+  vector<ZPoint> *blob = findClosestConnectedCompoenent(p);
+  float likelihood = likelihoodPerson(*blob, p.x, p.y);
   p.likelihood = likelihood;
   return likelihood;
 }
@@ -199,7 +223,9 @@ void Person_filter::jiggle_particle(Particle &p) {
 Bike_filter::Bike_filter(float max_x, float min_x, float max_y, float min_y) : Particle_filter(max_x, min_x, max_y, min_y) { }
 
 float Bike_filter::likelihood(Particle &p) {
-  float likelihood = likelihoodPerson(*measurments, p.x, p.y);
+  //find the nearest blob
+  vector<ZPoint> *blob = findClosestConnectedCompoenent(p);
+  float likelihood = likelihoodPerson(*blob, p.x, p.y);
   p.likelihood = likelihood;
   return likelihood;
 }

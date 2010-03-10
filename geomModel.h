@@ -21,7 +21,7 @@ typedef struct ZPoint {
 } ZPoint;
 
 float pVal(vector < ZPoint > &blob);
-float likelihoodPerson(vector < ZPoint > &frame,
+float likelihoodPerson(vector < ZPoint > &blob,
 					   float xPos, float yPos);
 
 #endif

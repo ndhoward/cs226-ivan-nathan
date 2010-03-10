@@ -112,6 +112,7 @@ float distSq(ZPoint &point, Particle &particle) {
   return xval*xval+yval*yval;
 }
 
+
 // Create Kd-tree, remove isolated points and return lists of
 // connected components.
 void findConnectedComponents(vector< ZPoint > &frame)
@@ -215,20 +216,6 @@ void findConnectedComponents(vector< ZPoint > &frame)
     findConnectedComponentMean(mean, connectedComponents[i]);
     connectedComponentsMean.push_back(mean);
   }
-}
-
-vector< ZPoint > *findClosestConnectedCompoenent(Particle &p) {
-  int idx = -1;
-  float minDist = 1000;
-  for (int i=0; i<connectedComponentsMean.size(); i++) {
-    ZPoint mean = connectedComponentsMean[i];
-    float dist = distSq(mean, p);
-    if (dist < minDist) {
-      minDist = dist;
-      idx = i;
-    }
-  }
-  return &connectedComponents[idx];
 }
 
 void identifyNewConnectedComponentsToClassifyPerson(vector< Particle > &potentialMean,
@@ -655,11 +642,13 @@ void updatePersonParticleFilters(vector<Person_filter*> &potential,
 				 vector<int> &existenceTime)
 {
   for (int i=0; i<tracked.size(); i++) {
-	tracked[i]->updateMeasurments(&frames[curFrame]);
+	tracked[i]->updateMeasurments(&connectedComponents);
+	tracked[i]->setConnectedComponentMeans(&connectedComponentsMean);
 	tracked[i]->update();
       }
   for (int i=0; i<potential.size(); i++) {
-    potential[i]->updateMeasurments(&frames[curFrame]);
+    potential[i]->updateMeasurments(&connectedComponents);
+    potential[i]->setConnectedComponentMeans(&connectedComponentsMean);
     potential[i]->update();
     existenceTime[i] += 1;
   }
@@ -670,11 +659,13 @@ void updateBikeParticleFilters(vector<Bike_filter*> &potential,
 			       vector<int> &existenceTime)
 {
   for (int i=0; i<tracked.size(); i++) {
-	tracked[i]->updateMeasurments(&frames[curFrame]);
-	tracked[i]->update();
-      }
+    tracked[i]->updateMeasurments(&connectedComponents);
+    tracked[i]->setConnectedComponentMeans(&connectedComponentsMean);
+    tracked[i]->update();
+  }
   for (int i=0; i<potential.size(); i++) {
-    potential[i]->updateMeasurments(&frames[curFrame]);
+    potential[i]->updateMeasurments(&connectedComponents);
+    potential[i]->setConnectedComponentMeans(&connectedComponentsMean);
     potential[i]->update();
     existenceTime[i] += 1;
   }
