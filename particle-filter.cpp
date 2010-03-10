@@ -143,7 +143,7 @@ void  Particle_filter::update() {
 
 // For now this is a uniform probabilty centered at the particle
 void Particle_filter::jiggle_particle(Particle &p) {
-  const float POSJIGGLE=0.04; // in meters
+  const float POSJIGGLE=0.04; // in meers
   const float THETAJIGGLE=90.0; // in degrees
   p.x += POSJIGGLE*(float)rand()/RAND_MAX;
   p.y += POSJIGGLE*(float)rand()/RAND_MAX;

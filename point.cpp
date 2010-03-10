@@ -346,6 +346,7 @@ void identifyNewConnectedComponentsToClassifyBike(vector< Particle > &potentialM
 
       cout << "created new " << debugName << " particle filter centered at: (" << blobMean.x
 	   << ", " << blobMean.y << ")" << endl;
+      
     }
   }
 }
@@ -380,7 +381,7 @@ void removeStalePersonParticleFilters(vector< Person_filter * > &potential,
 
   for (int i=0; i<tracked.size();) {
     float likelihood = computeParticleFilterMeanLikelihood(tracked[i]);
-    cout << "mean likelihood for " << debugName << " filter: " << i
+    cout << "mean likelihood for filter " << debugName << ": " << i
 	 << " is " << likelihood << endl;    
     if (likelihood < 20) {
       //delete trackedPerson[i];
@@ -723,8 +724,11 @@ void key(unsigned char k, int x, int y)
       printf("Current frame: %d\n", frames[curFrame][0].t);
       findConnectedComponents(frames[curFrame]);
       cout << "there are " << connectedComponents.size() << " blobs" << endl; 
-      cout << "there are " << trackedPerson.size() << " tracked persons" << endl;
-      cout << "there are " << potentialPerson.size() << " potential persons" << endl;
+      cout << "---> " << trackedPerson.size() << " tracked persons" << endl;
+      cout << "---> " << potentialPerson.size() << " potential persons" << endl;
+      cout << "---> " << trackedBike.size() << " tracked bikes" << endl;
+      cout << "---> " << potentialBike.size() << " potential bikes" << endl;
+      
       updatePersonParticleFilters(potentialPerson,
 			    trackedPerson,
 			    potentialPersonExistenceTime);
