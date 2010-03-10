@@ -1,0 +1,2 @@
+# link: http://electron.mit.edu/~gsteele/ffmpeg/
+ffmpeg -r 10 -b 800k -i %03d.png vid.mp4
